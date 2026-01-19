@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daggerheart Mobile</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --bg-dark: #121212; --bg-panel: #1e1e1e; --border-color: #3f3f46; --gold: #ca8a04; --red: #991b1b; --purple: #7e22ce; --text-main: #e4e4e7; }
+        body { font-family: 'Lato', sans-serif; background-color: var(--bg-dark); color: var(--text-main); overscroll-behavior-y: none; }
+        h1, h2, h3, .font-cinzel { font-family: 'Cinzel', serif; }
+        
+        .pip-container { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+        .pip { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #525252; background: transparent; transition: all 0.2s ease; cursor: pointer; }
+        .pip.active { background-color: var(--text-main); border-color: var(--text-main); box-shadow: 0 0 4px rgba(255,255,255,0.5); }
+        .pip.hp.active { background-color: #ef4444; border-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        .pip.stress.active { background-color: #d8b4fe; border-color: #d8b4fe; box-shadow: 0 0 6px #d8b4fe; }
+        .pip.hope.active { background-color: #facc15; border-color: #facc15; box-shadow: 0 0 6px #facc15; }
+        .pip.armor.active { background-color: #60a5fa; border-color: #60a5fa; box-shadow: 0 0 6px #60a5fa; }
+
+        .dh-panel { background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px; position: relative; }
+        .dh-input { background: #27272a; border: 1px solid #3f3f46; color: white; padding: 8px; border-radius: 4px; width: 100%; font-size: 1rem; transition: all 0.2s; }
+        .dh-input.read-only { background: transparent; border: 1px solid transparent; padding: 0; color: var(--gold); font-weight: bold; pointer-events: none; }
+        .dh-input:focus { outline: none; border-color: var(--gold); }
+        
+        select.dh-input { -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1em; padding-right: 2rem; }
+        select.dh-input.read-only { background-image: none; padding-right: 0; appearance: none; }
+
+        .stat-box { display: flex; flex-direction: column; align-items: center; background: #27272a; border: 1px solid #3f3f46; border-radius: 6px; padding: 8px 4px; cursor: pointer; position: relative; transition: border-color 0.2s; }
+        .stat-box:active { transform: scale(0.98); border-color: var(--gold); }
+        .stat-val-display { font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.5rem; text-align: center; width: 40px; }
+        .stat-arrow { color: #71717a; padding: 2px 8px; cursor: pointer; font-size: 0.8rem; user-select: none; }
+        .stat-arrow:hover { color: var(--gold); }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; backdrop-filter: blur(4px); }
+        .toggle-group { display: flex; background: #27272a; border-radius: 6px; padding: 2px; }
+        .toggle-btn { flex: 1; text-align: center; padding: 8px; font-size: 0.8rem; border-radius: 4px; color: #71717a; transition: all 0.2s; font-weight: 600; }
+        .toggle-btn.active { background: #3f3f46; color: white; }
+        .toggle-btn.active-adv { background: #15803d; color: white; }
+        .toggle-btn.active-dis { background: #b91c1c; color: white; }
+
+        .attributes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .deck-scroll { display: flex; overflow-x: auto; gap: 16px; padding: 10px 0; scroll-snap-type: x mandatory; }
+        .card-view { flex: 0 0 85vw; height: 60vh; background: #000; border-radius: 12px; overflow: hidden; position: relative; scroll-snap-align: center; border: 2px solid #3f3f46; }
+        .card-img { width: 100%; height: 100%; object-fit: contain; }
+        .delete-btn { position: absolute; top: 10px; right: 10px; background: rgba(185, 28, 28, 0.8); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        
+        .char-portrait { width: 150px; height: 150px; border: 4px solid var(--gold); object-fit: cover; margin: 0 auto 15px auto; display: block; background: #27272a; cursor: pointer; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        
+        .editing .dh-input { border-color: #525252; background: #27272a; pointer-events: auto; }
+        .playing .dh-input { border-color: transparent; background: transparent; pointer-events: none; }
+        .playing .edit-only { display: none; }
+        .hide-scroll::-webkit-scrollbar { display: none; } .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const TRAITS = { agility: "Agilità", strength: "Forza", finesse: "Finezza", instinct: "Istinto", presence: "Presenza", knowledge: "Conoscenza" };
+        const TRAIT_SKILLS = {
+            agility: "Scatto, Balzo, Manovra", strength: "Sollevare, Fracassare, Lottare", finesse: "Controllare, Nascondersi, Armeggiare",
+            instinct: "Percepire, Intuire, Orientarsi", presence: "Affascinare, Esibirsi, Ingannare", knowledge: "Rammentare, Analizzare, Compr."
+        };
+        const DICE = ["d4", "d6", "d8", "d10", "d12", "d20"];
+        
+        const DEFAULT_CHAR = {
+            name: "Eroe", playerName: "", class: "Bardo", subclass: "", heritage: "", level: 1, proficiency: 1, charImg: null,
+            traits: { agility: 0, strength: 0, finesse: 0, instinct: 0, presence: 0, knowledge: 0 },
+            evasion: 10, armorScore: 0,
+            activeArmor: { name: "Armatura Base", baseThresholds: "5 (min) - 10 (maj)", baseScore: 1, traits: "Leggera", feature: "" },
+            thresholds: { minor: 2, major: 3, severe: 4 },
+            hp: { current: 0, max: 6 }, stress: { current: 0, max: 6 }, hope: { current: 2, max: 5 }, armorSlots: { current: 0, max: 6 },
+            gold: { handfuls: 0, bags: 0, chests: 0 },
+            classFeature: "", deck: [],
+            weapons: [{ name: "", trait: "agility", range: "Mischia", damageRows: [{ count: 1, die: "d8", mod: 0, type: "fis" }], feature: "" }],
+            potions: [],
+            notes: ""
+        };
+
+        const compressImage = (file) => new Promise((resolve) => {
+            const reader = new FileReader(); reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image(); img.src = e.target.result;
+                img.onload = () => {
+                    const cvs = document.createElement('canvas');
+                    const scale = 600 / img.width; cvs.width = 600; cvs.height = img.height * scale;
+                    cvs.getContext('2d').drawImage(img, 0, 0, cvs.width, cvs.height);
+                    resolve(cvs.toDataURL('image/jpeg', 0.7));
+                };
+            };
+        });
+
+        // --- COMPONENTS ---
+        const PipTracker = ({ total, current, onChange, type }) => (
+            <div className="pip-container">
+                {[...Array(total)].map((_, i) => (
+                    <div key={i} onClick={() => onChange((i === 0 && current === 1) ? 0 : (i + 1 === current ? current - 1 : i + 1))} className={`pip ${type} ${i < current ? 'active' : ''}`}></div>
+                ))}
+            </div>
+        );
+
+        const StatBox = ({ label, value, skillText, statKey, onClick, onChange, isEditMode }) => (
+            <div className={`stat-box ${!isEditMode ? 'hover:border-[#ca8a04]' : ''}`} onClick={onClick}>
+                <span className="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-1">{label}</span>
+                <div className="flex items-center justify-center w-full">
+                    {isEditMode && <div onClick={(e)=>{e.stopPropagation(); if(value>-10) onChange(statKey, parseInt(value)-1)}} className="stat-arrow text-2xl">▼</div>}
+                    <div className={`stat-val-display ${!isEditMode ? 'text-white' : 'text-[#ca8a04]'}`}>{value}</div>
+                    {isEditMode && <div onClick={(e)=>{e.stopPropagation(); if(value<10) onChange(statKey, parseInt(value)+1)}} className="stat-arrow text-2xl">▲</div>}
+                </div>
+                <span className="text-[9px] text-center text-gray-500 leading-tight mt-1 px-1">{skillText}</span>
+            </div>
+        );
+
+        const PotionManager = ({ potions, onUpdate, isEditMode, onUse }) => {
+            const [newPot, setNewPot] = useState({ name: "", die: "d4", target: "HP" });
+            const addPotion = () => { if(newPot.name) { onUpdate([...potions, { ...newPot, count: 1, id: Date.now() }]); setNewPot({ name: "", die: "d4", target: "HP" }); }};
+            const updateCount = (id, delta) => {
+                const updated = potions.map(p => p.id === id ? { ...p, count: Math.max(0, p.count + delta) } : p).filter(p => p.count > 0 || isEditMode);
+                onUpdate(updated);
+            };
+
+            return (
+                <div className="dh-panel border-l-4 border-l-purple-600">
+                    <h3 className="font-cinzel text-sm text-purple-400 mb-2 uppercase">Inventario Pozioni</h3>
+                    {isEditMode && (
+                        <div className="flex flex-col gap-2 mb-4 bg-black/30 p-2 rounded">
+                            <div className="text-[10px] text-gray-500 uppercase font-bold">Crea Pozione</div>
+                            <div className="flex gap-2">
+                                <input value={newPot.name} onChange={e => setNewPot({...newPot, name: e.target.value})} className="dh-input text-xs flex-1" placeholder="Nome (es. Salute Minore)" />
+                                <select value={newPot.die} onChange={e => setNewPot({...newPot, die: e.target.value})} className="dh-input text-xs w-16">{DICE.map(d=><option key={d}>{d}</option>)}</select>
+                                <select value={newPot.target} onChange={e => setNewPot({...newPot, target: e.target.value})} className="dh-input text-xs w-20"><option>HP</option><option>Stress</option><option>Armor</option><option>Hope</option></select>
+                                <button onClick={addPotion} className="bg-purple-900 text-white px-3 rounded font-bold">+</button>
+                            </div>
+                        </div>
+                    )}
+                    <div className="space-y-2">
+                        {potions.length === 0 && <div className="text-xs text-gray-500 italic text-center">Nessuna pozione.</div>}
+                        {potions.map(p => (
+                            <div key={p.id} className="flex justify-between items-center bg-[#121212] p-2 rounded border border-[#3f3f46]">
+                                <div>
+                                    <div className="font-bold text-sm text-purple-200">{p.name}</div>
+                                    <div className="text-[10px] text-gray-400">Recupera: {p.die} {p.target}</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center bg-[#27272a] rounded">
+                                        <button onClick={() => updateCount(p.id, -1)} className="px-2 text-gray-400 hover:text-white font-bold">-</button>
+                                        <span className="text-sm font-bold w-6 text-center">{p.count}</span>
+                                        <button onClick={() => updateCount(p.id, 1)} className="px-2 text-gray-400 hover:text-white font-bold">+</button>
+                                    </div>
+                                    <button onClick={() => { if(p.count > 0) { onUse(p); updateCount(p.id, -1); } }} className="bg-purple-900 hover:bg-purple-800 text-white text-[10px] px-3 py-1 rounded uppercase font-bold tracking-wider shadow">Usa</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const ActiveArmorPanel = ({ armor, slots, onUpdateArmor, onUpdateSlots, isEditMode }) => (
+            <div className="dh-panel border-l-4 border-l-blue-600">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-cinzel text-sm text-blue-400 uppercase">Armatura Attiva</h3>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase text-blue-300">Punt. Base</span>
+                        {isEditMode ? 
+                            <select value={armor.baseScore} onChange={e=>onUpdateArmor('baseScore', parseInt(e.target.value))} className="bg-[#27272a] text-white text-sm border border-gray-600 rounded">
+                                {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                            </select>
+                            : <span className="font-bold text-lg text-white border border-blue-900 bg-blue-900/20 px-2 rounded">{armor.baseScore}</span>
+                        }
+                    </div>
+                </div>
+                
+                <div className="grid gap-2">
+                    <div>
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Nome</label>
+                        <input value={armor.name} onChange={e => onUpdateArmor('name', e.target.value)} className={`dh-input font-bold ${!isEditMode ? 'read-only' : ''}`} placeholder="Nome Armatura" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Soglie Base</label>
+                        <input value={armor.baseThresholds} onChange={e => onUpdateArmor('baseThresholds', e.target.value)} className={`dh-input text-xs ${!isEditMode ? 'read-only' : ''}`} placeholder="Es. 5 (min) - 10 (mag)" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Caratteristiche</label>
+                        <input value={armor.traits} onChange={e => onUpdateArmor('traits', e.target.value)} className={`dh-input text-xs ${!isEditMode ? 'read-only' : ''}`} placeholder="Es. Pesante, Ingombrante" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Peculiarità</label>
+                        {isEditMode ? 
+                            <textarea value={armor.feature} onChange={e => onUpdateArmor('feature', e.target.value)} className="dh-input text-xs h-16" placeholder="Effetti unici..." /> 
+                            : <div className="text-xs text-gray-300 italic min-h-[1.5rem]">{armor.feature || "Nessuna peculiarità"}</div>
+                        }
+                    </div>
+                </div>
+
+                <div className="mt-3 pt-2 border-t border-[#3f3f46]">
+                    <div className="flex justify-between mb-1">
+                        <span className="text-xs uppercase font-bold text-gray-400">Slot Armatura</span>
+                        {isEditMode && <div className="text-[10px] text-gray-500">Max: <input type="number" value={slots.max} onChange={e=>onUpdateSlots('max', parseInt(e.target.value))} className="bg-transparent text-right w-8 text-white border-b border-gray-600"/></div>}
+                    </div>
+                    <PipTracker total={slots.max} current={slots.current} onChange={v => onUpdateSlots('current', v)} type="armor" />
+                </div>
+            </div>
+        );
+
+        const DiceModal = ({ isOpen, onClose, modifier, traitName }) => {
+            const [result, setResult] = useState(null);
+            const [advMode, setAdvMode] = useState('normal'); 
+            useEffect(() => { if(isOpen) { setResult(null); setAdvMode('normal'); } }, [isOpen]);
+            if (!isOpen) return null;
+            const roll = () => {
+                const hope = Math.floor(Math.random() * 12) + 1; const fear = Math.floor(Math.random() * 12) + 1;
+                let adv = (advMode !== 'normal') ? Math.floor(Math.random() * 6) + 1 : 0;
+                let total = hope + fear + (parseInt(modifier) || 0) + (advMode === 'adv' ? adv : advMode === 'dis' ? -adv : 0);
+                setResult({ hope, fear, adv, total, isCrit: hope === fear, isHope: hope >= fear });
+            };
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-[#3f3f46] w-full max-w-sm rounded-lg p-5 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-xl text-white mb-4">Tiro {traitName}</h2>
+                        {!result ? (
+                            <div className="space-y-6">
+                                <div className="toggle-group"><div className={`toggle-btn ${advMode === 'dis' ? 'active-dis' : ''}`} onClick={() => setAdvMode('dis')}>Svant. (-1d6)</div><div className={`toggle-btn ${advMode === 'normal' ? 'active' : ''}`} onClick={() => setAdvMode('normal')}>Normale</div><div className={`toggle-btn ${advMode === 'adv' ? 'active-adv' : ''}`} onClick={() => setAdvMode('adv')}>Vant. (+1d6)</div></div>
+                                <div className="text-gray-400">Modificatore: <b className="text-white text-lg">{modifier >= 0 ? `+${modifier}` : modifier}</b></div>
+                                <button onClick={roll} className="w-full py-3 bg-[#ca8a04] text-black font-bold rounded text-lg uppercase tracking-wide">Lancia</button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4 animate-fade-in">
+                                <div className="flex justify-center gap-6 items-end"><div><span className="block text-[10px] text-gray-500 uppercase">Speranza</span><span className="text-4xl font-cinzel hope-text">{result.hope}</span></div><div><span className="block text-[10px] text-gray-500 uppercase">Paura</span><span className="text-4xl font-cinzel fear-text">{result.fear}</span></div></div>
+                                {advMode !== 'normal' && <div className="text-sm text-gray-400">{advMode === 'adv' ? 'Vantaggio (+d6)' : 'Svantaggio (-d6)'}: <span className={`font-bold ${advMode === 'adv' ? 'text-green-500' : 'text-red-500'} ml-1`}>{advMode === 'adv' ? '+' : '-'}{result.adv}</span></div>}
+                                <div className="bg-[#27272a] p-3 rounded-lg border border-[#3f3f46]"><div className="text-[10px] uppercase text-gray-500">Totale</div><div className="text-5xl font-cinzel text-white">{result.total}</div></div>
+                                <div className={`py-2 px-3 rounded font-bold text-sm ${result.isCrit ? 'bg-green-900 text-green-200' : result.isHope ? 'bg-yellow-900/40 text-yellow-200' : 'bg-purple-900/40 text-purple-200'}`}>{result.isCrit ? "SUCCESSO CRITICO" : result.isHope ? "AZIONE CON SPERANZA" : "AZIONE CON PAURA"}</div>
+                                <button onClick={onClose} className="mt-2 text-gray-500 text-sm underline">Chiudi</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const ResultModal = ({ isOpen, onClose, total, detail, title }) => {
+            if (!isOpen) return null;
+            return (
+                 <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-red-900 w-full max-w-sm rounded-lg p-5 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-xl text-white mb-1">{title}</h2>
+                        <div className="text-6xl font-cinzel text-white my-4">{total}</div>
+                        <div className="text-xs text-gray-400 mb-6 font-mono">{detail}</div>
+                        <button onClick={onClose} className="w-full py-2 bg-gray-800 rounded text-gray-300">Chiudi</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const WeaponCard = ({ weapon, onChange, onRollAttack, onRollDamage, currentMod, isEditMode }) => {
+            const update = (f, v) => onChange({...weapon, [f]: v});
+            const updateRow = (i, f, v) => { const rows = [...weapon.damageRows]; rows[i][f] = v; update('damageRows', rows); };
+            const addRow = () => update('damageRows', [...weapon.damageRows, { count: 1, die: "d6", mod: 0, type: "fis" }]);
+            const removeRow = (idx) => update('damageRows', weapon.damageRows.filter((_, i) => i !== idx));
+            const damageSummary = weapon.damageRows.map(r => `${r.count}${r.die}${r.mod > 0 ? '+'+r.mod : r.mod < 0 ? r.mod : ''}`).join(' + ');
+
+            return (
+                <div className="dh-panel border-l-4 border-l-amber-600">
+                    <div className="flex gap-2 mb-3">
+                        <input value={weapon.name} onChange={e => update('name', e.target.value)} className={`dh-input font-bold ${!isEditMode ? 'read-only text-lg' : ''}`} placeholder="Nome Arma" />
+                        {isEditMode && <button onClick={() => onChange(null)} className="text-red-500 font-bold px-2">X</button>}
+                    </div>
+                    {isEditMode ? (
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div><label className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Caratteristica</label><select value={weapon.trait} onChange={e => update('trait', e.target.value)} className="dh-input text-sm py-1">{Object.keys(TRAITS).map(k => <option key={k} value={k}>{TRAITS[k]}</option>)}</select></div>
+                            <div><label className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Gittata</label><input value={weapon.range} onChange={e => update('range', e.target.value)} className="dh-input text-sm py-1" /></div>
+                        </div>
+                    ) : ( <div className="flex justify-between text-xs text-gray-400 uppercase tracking-wider mb-3"><span>{TRAITS[weapon.trait]} ({currentMod >= 0 ? '+'+currentMod : currentMod})</span><span>{weapon.range}</span></div> )}
+                    {isEditMode ? (
+                        <div className="bg-[#121212] p-2 rounded mb-3 border border-[#3f3f46]">
+                             <label className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Danni</label>
+                             {weapon.damageRows.map((row, i) => (
+                                 <div key={i} className="flex gap-1 items-center mb-1">
+                                    <input type="number" value={row.count} onChange={e => updateRow(i, 'count', parseInt(e.target.value))} className="dh-input text-center p-1 w-10 text-sm" />
+                                    <span className="text-gray-500 text-xs">x</span>
+                                    <select value={row.die} onChange={e => updateRow(i, 'die', e.target.value)} className="dh-input p-1 w-16 text-sm">{DICE.map(d => <option key={d} value={d}>{d}</option>)}</select>
+                                    <span className="text-gray-500 text-xs">+</span>
+                                    <input type="number" value={row.mod} onChange={e => updateRow(i, 'mod', parseInt(e.target.value))} className="dh-input text-center p-1 w-10 text-sm" />
+                                    <input value={row.type} onChange={e => updateRow(i, 'type', e.target.value)} className="dh-input text-center p-1 w-12 text-sm text-gray-400" placeholder="tipo" />
+                                    <button onClick={() => removeRow(i)} className="text-red-500 px-2 font-bold">×</button>
+                                 </div>
+                             ))}
+                             <button onClick={addRow} className="text-xs text-[#ca8a04] mt-1 font-bold">+ Dado</button>
+                        </div>
+                    ) : ( <div className="text-sm text-gray-300 mb-4 bg-[#121212] p-2 rounded border border-[#3f3f46]"><span className="text-[10px] uppercase text-gray-500 block">Danni</span>{damageSummary}</div> )}
+                    <div className="grid grid-cols-2 gap-3 mt-2"><button onClick={onRollAttack} className="bg-[#3f3f46] hover:bg-[#52525b] text-white py-3 rounded text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">⚔️ Attacco</button><button onClick={onRollDamage} className="bg-red-900 hover:bg-red-800 text-white py-3 rounded text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">🩸 Danni</button></div>
+                </div>
+            );
+        };
+
+        const DeckView = ({ deck, onBack, onAddCard, onDeleteCard }) => {
+            const fileInput = useRef(null);
+            const handleUpload = async (e) => { if (e.target.files[0]) onAddCard(await compressImage(e.target.files[0])); };
+            return (
+                <div className="pb-20 max-w-md mx-auto min-h-screen bg-[#121212] flex flex-col">
+                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center"><button onClick={onBack} className="text-gray-400 text-sm">← Scheda</button><h2 className="font-cinzel text-[#ca8a04]">Mazzo Abilità</h2><div className="w-12"></div></div>
+                    <div className="flex-grow p-4 flex flex-col items-center">
+                        {deck.length === 0 ? <div className="text-gray-500 text-center mt-20"><div>Nessuna carta.</div></div> : (
+                            <div className="deck-scroll w-full">{deck.map((img, i) => (<div key={i} className="card-view flex-shrink-0"><img src={img} className="card-img" /><button onClick={() => { if(confirm('Eliminare?')) onDeleteCard(i); }} className="delete-btn">×</button><div className="absolute bottom-2 right-4 bg-black/50 px-2 rounded text-xs">{i+1}/{deck.length}</div></div>))}</div>
+                        )}
+                    </div>
+                    <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]"><input type="file" accept="image/*" ref={fileInput} onChange={handleUpload} className="hidden" /><button onClick={() => fileInput.current.click()} className="w-full py-3 bg-[#ca8a04] text-black font-bold uppercase rounded shadow-lg">+ Aggiungi Carta</button></div>
+                </div>
+            );
+        };
+
+        const CharacterSheet = ({ data, onSave, onBack }) => {
+            const [char, setChar] = useState(() => {
+                const c = {...data};
+                if(!c.thresholds) c.thresholds = {minor:2, major:3, severe:4};
+                if(!c.classFeature) c.classFeature = ""; if(!c.deck) c.deck = []; if(!c.playerName) c.playerName = "";
+                if(!c.activeArmor) c.activeArmor = { name: "Armatura Base", baseThresholds: "", baseScore: 1, traits: "", feature: "" };
+                if(!c.potions) c.potions = [];
+                return c;
+            });
+            const [view, setView] = useState('sheet');
+            const [diceState, setDiceState] = useState({ open: false, mod: 0, name: '' });
+            const [dmgState, setDmgState] = useState({ open: false, total: 0, detail: '', title: '' });
+            const [isEditMode, setIsEditMode] = useState(false);
+            const imgInput = useRef(null);
+
+            useEffect(() => onSave(char), [char]);
+
+            const update = (f, v) => setChar(p => ({...p, [f]: v}));
+            const updateDeep = (cat, field, val) => setChar(p => ({...p, [cat]: {...p[cat], [field]: val}}));
+            const updateTrait = (k, v) => setChar(p => ({...p, traits: {...p.traits, [k]: parseInt(v)||0}}));
+
+            const handleImgUpload = async (e) => { if(e.target.files[0]) update('charImg', await compressImage(e.target.files[0])); };
+
+            const rollAttack = (w) => setDiceState({ open: true, mod: char.traits[w.trait] || 0, name: `${w.name} (${TRAITS[w.trait]})` });
+            
+            const rollDiceGeneric = (count, die, mod, title) => {
+                let total = 0, details = [];
+                let sub = mod; let rolls = [];
+                for(let i=0; i<count; i++) { const r = Math.floor(Math.random() * parseInt(die.slice(1))) + 1; sub += r; rolls.push(r); }
+                total += sub; details.push(`${count}${die}(${rolls.join('+')})${mod!==0 ? (mod>0?'+':'')+mod : ''}`);
+                setDmgState({ open: true, total, detail: details.join(' '), title });
+            };
+
+            const rollWeaponDamage = (w) => {
+                let total = 0, details = [];
+                w.damageRows.forEach(row => {
+                    let sub = row.mod; let rolls = [];
+                    for(let i=0; i<row.count; i++) { const r = Math.floor(Math.random() * parseInt(row.die.slice(1))) + 1; sub += r; rolls.push(r); }
+                    total += sub; details.push(`${row.count}${row.die}(${rolls.join('+')})${row.mod!==0 ? (row.mod>0?'+':'')+row.mod : ''}`);
+                });
+                setDmgState({ open: true, total, detail: details.join(' + '), title: 'Danni' });
+            };
+
+            if (view === 'deck') return <DeckView deck={char.deck} onBack={() => setView('sheet')} onAddCard={(img) => setChar(p => ({...p, deck: [...p.deck, img]}))} onDeleteCard={(idx) => setChar(p => ({...p, deck: p.deck.filter((_, i) => i !== idx)}))} />;
+
+            return (
+                <div className={`pb-20 max-w-md mx-auto ${isEditMode ? 'editing' : 'playing'}`}>
+                    <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center shadow-md">
+                        <button onClick={onBack} className="text-gray-400 text-sm">← Esci</button>
+                        <div className="flex gap-2">
+                             <button onClick={() => setView('deck')} className="text-[#ca8a04] text-xl p-1" title="Mazzo">🎴</button>
+                            <button onClick={() => setIsEditMode(!isEditMode)} className={`text-xl p-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-gray-500'}`} title="Modifica">{isEditMode ? "🔓" : "🔒"}</button>
+                        </div>
+                    </div>
+
+                    <div className="p-3 space-y-4">
+                        <div className="text-center mt-2">
+                            <input type="file" ref={imgInput} onChange={handleImgUpload} className="hidden" accept="image/*"/>
+                            <img src={char.charImg || "https://placehold.co/150x150/27272a/gray?text=IMG"} className="char-portrait" onClick={()=>imgInput.current.click()} />
+                            <h1 className="font-cinzel text-white font-bold leading-none text-xl">{char.name || "Eroe"}</h1>
+                            {isEditMode ? <input value={char.playerName} onChange={e => update('playerName', e.target.value)} className="dh-input py-1 text-sm text-center mt-1" placeholder="Giocatore" /> : <div className="text-[10px] text-[#ca8a04] uppercase tracking-widest mt-1">{char.playerName || "Giocatore"}</div>}
+                        </div>
+
+                        <div className="dh-panel grid grid-cols-2 gap-2">
+                            {isEditMode && <div className="col-span-2 mb-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Nome Personaggio</label><input value={char.name} onChange={e => update('name', e.target.value)} className="dh-input py-1 text-sm" /></div>}
+                            <div><label className="text-[10px] text-gray-500 uppercase font-bold">Classe</label>{isEditMode ? <select value={char.class} onChange={e => setChar(p => ({...p, class: e.target.value}))} className={`dh-input py-1 text-sm ${!isEditMode ? 'read-only' : ''}`}><option value="Bardo">Bardo</option><option value="Druido">Druido</option><option value="Guardiano">Guardiano</option><option value="Ranger">Ranger</option><option value="Ladro">Ladro</option><option value="Serafino">Serafino</option><option value="Stregone">Stregone</option><option value="Guerriero">Guerriero</option><option value="Mago">Mago</option></select> : <div className="text-white text-sm py-1">{char.class}</div>}</div>
+                            <div><label className="text-[10px] text-gray-500 uppercase font-bold">Livello</label>{isEditMode ? <input type="number" value={char.level} onChange={e => update('level', e.target.value)} className="dh-input py-1 text-sm" /> : <div className="text-white text-sm py-1">{char.level}</div>}</div>
+                            <div className="col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Stirpe & Sottoclasse</label>{isEditMode ? <div className="flex gap-2"><input value={char.heritage} onChange={e => update('heritage', e.target.value)} className="dh-input py-1 text-sm flex-1" placeholder="Stirpe" /><input value={char.subclass} onChange={e => update('subclass', e.target.value)} className="dh-input py-1 text-sm flex-1" placeholder="Sottoclasse" /></div> : <div className="text-white text-sm py-1">{char.heritage || "-"} {char.subclass ? `- ${char.subclass}` : ""}</div>}</div>
+                        </div>
+
+                        <div className="attributes-grid">
+                            {Object.keys(TRAITS).map(k => (<StatBox key={k} label={TRAITS[k]} value={char.traits[k]} skillText={TRAIT_SKILLS[k]} statKey={k} onChange={updateTrait} onClick={() => !isEditMode && setDiceState({ open: true, mod: char.traits[k], name: TRAITS[k] })} isEditMode={isEditMode} />))}
+                        </div>
+
+                        <div className="bg-[#121212] border border-red-900/50 rounded p-2 flex flex-row items-center justify-between text-[10px] text-red-400 gap-1 overflow-x-auto hide-scroll">
+                            <div className="flex flex-row items-center gap-2 flex-shrink-0"><span className="uppercase font-bold whitespace-nowrap">Danno Minore</span>{isEditMode ? <input type="number" value={char.thresholds.minor} onChange={e => updateDeep('thresholds', 'minor', parseInt(e.target.value))} className="w-12 bg-[#27272a] border border-red-900/50 rounded text-center text-white font-cinzel text-sm p-1 focus:outline-none" /> : <span className="text-white font-cinzel text-sm px-2">{char.thresholds.minor}</span>}</div>
+                            <div className="flex flex-row items-center gap-2 flex-shrink-0"><span className="uppercase font-bold whitespace-nowrap">Danno Maggiore</span>{isEditMode ? <input type="number" value={char.thresholds.major} onChange={e => updateDeep('thresholds', 'major', parseInt(e.target.value))} className="w-12 bg-[#27272a] border border-red-900/50 rounded text-center text-white font-cinzel text-sm p-1 focus:outline-none" /> : <span className="text-white font-cinzel text-sm px-2">{char.thresholds.major}</span>}</div>
+                            <div className="flex flex-row items-center gap-2 flex-shrink-0"><span className="uppercase font-bold whitespace-nowrap">Danno Grave</span></div>
+                        </div>
+
+                        <div className="dh-panel space-y-4">
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Punti Ferita</span>{isEditMode ? <input type="number" value={char.hp.max} onChange={e=>updateDeep('hp','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hp.max}</span>}</div><PipTracker total={char.hp.max} current={char.hp.current} onChange={v => updateDeep('hp','current',v)} type="hp" /></div>
+                            <hr className="border-[#3f3f46]" />
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Stress</span>{isEditMode ? <input type="number" value={char.stress.max} onChange={e=>updateDeep('stress','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.stress.max}</span>}</div><PipTracker total={char.stress.max} current={char.stress.current} onChange={v => updateDeep('stress','current',v)} type="stress" /></div>
+                             <hr className="border-[#3f3f46]" />
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Speranza</span>{isEditMode ? <input type="number" value={char.hope.max} onChange={e=>updateDeep('hope','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hope.max}</span>}</div><PipTracker total={char.hope.max} current={char.hope.current} onChange={v => updateDeep('hope','current',v)} type="hope" /></div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <div className="bg-[#1e1e1e] border border-[#3f3f46] rounded p-2 text-center flex-1"><div className="text-[10px] text-gray-500 uppercase">Evasione</div>{isEditMode ? <input type="number" value={char.evasion} onChange={e => update('evasion', parseInt(e.target.value))} className="text-xl font-cinzel bg-transparent text-white text-center w-full focus:outline-none" /> : <div className="text-xl font-cinzel text-white">{char.evasion}</div>}</div>
+                            <div className="bg-[#1e1e1e] border border-[#3f3f46] rounded p-2 text-center flex-1"><div className="text-[10px] text-gray-500 uppercase">Armatura</div>{isEditMode ? <input type="number" value={char.armorScore} onChange={e => update('armorScore', parseInt(e.target.value))} className="text-xl font-cinzel bg-transparent text-white text-center w-full focus:outline-none" /> : <div className="text-xl font-cinzel text-white">{char.armorScore}</div>}</div>
+                        </div>
+
+                        <ActiveArmorPanel armor={char.activeArmor} slots={char.armorSlots} isEditMode={isEditMode} onUpdateArmor={(f,v)=>updateDeep('activeArmor',f,v)} onUpdateSlots={(f,v)=>updateDeep('armorSlots',f,v)} />
+                        <PotionManager potions={char.potions} isEditMode={isEditMode} onUpdate={p => update('potions', p)} onUse={(p) => rollDiceGeneric(1, p.die, 0, `Effetto ${p.name}`)} />
+
+                        <div className="dh-panel"><h3 className="font-cinzel text-sm text-[#ca8a04] mb-2 uppercase">Privilegio di Classe</h3>{isEditMode ? <textarea value={char.classFeature} onChange={e => update('classFeature', e.target.value)} className="dh-input h-24 text-sm" placeholder="Descrivi qui..." /> : <div className="text-sm text-gray-300 whitespace-pre-wrap">{char.classFeature || "Nessun privilegio."}</div>}</div>
+
+                        <h3 className="font-cinzel text-lg text-white border-b border-[#3f3f46] pb-1">Armi</h3>
+                        <div className="space-y-3">
+                            {char.weapons.map((w, i) => (<WeaponCard key={i} weapon={w} currentMod={char.traits[w.trait]} isEditMode={isEditMode} onChange={nw => { if(nw===null) { const ws=[...char.weapons]; ws.splice(i,1); setChar(p=>({...p, weapons:ws})); } else { const ws = [...char.weapons]; ws[i]=nw; setChar(p=>({...p, weapons:ws})); }}} onRollAttack={() => rollAttack(w)} onRollDamage={() => rollWeaponDamage(w)} />))}
+                            {isEditMode && <button onClick={() => setChar(p => ({...p, weapons: [...p.weapons, DEFAULT_CHAR.weapons[0]]}))} className="w-full py-2 border border-dashed border-gray-600 text-gray-500 rounded text-sm">+ Aggiungi Arma</button>}
+                        </div>
+                    </div>
+                    <DiceModal isOpen={diceState.open} onClose={() => setDiceState({...diceState, open:false})} modifier={diceState.mod} traitName={diceState.name} />
+                    <ResultModal isOpen={dmgState.open} onClose={() => setDmgState({...dmgState, open:false})} total={dmgState.total} detail={dmgState.detail} title={dmgState.title} />
+                </div>
+            );
+        };
+
+        const SlotManager = ({ slots, onSelect, onDelete, onCreate }) => (
+            <div className="p-4 max-w-md mx-auto min-h-screen flex flex-col justify-center">
+                <h1 className="text-3xl font-cinzel text-center text-[#ca8a04] mb-8">Daggerheart</h1>
+                <div className="space-y-3">{slots.map((s, i) => (<div key={i} className="bg-[#1e1e1e] border border-[#3f3f46] rounded-lg p-4 flex justify-between items-center" onClick={() => !s ? onCreate(i) : onSelect(i)}><div><div className="text-[10px] text-gray-500 uppercase font-bold">Slot {i+1}</div>{s ? (<div><div className="text-lg font-bold text-white">{s.name}</div><div className="text-xs text-[#ca8a04]">{s.class} Liv. {s.level}</div></div>) : <div className="text-gray-600 italic">Vuoto - Crea Nuovo</div>}</div>{s && <button onClick={(e) => {e.stopPropagation(); if(confirm('Eliminare?')) onDelete(i);}} className="text-red-900 bg-red-900/20 px-3 py-1 rounded text-xs">X</button>}</div>))}</div>
+            </div>
+        );
+
+        const App = () => {
+            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v6') || '[null,null,null,null,null]'));
+            const [active, setActive] = useState(null);
+            useEffect(() => localStorage.setItem('dh_mobile_v6', JSON.stringify(slots)), [slots]);
+            const save = (c) => { const ns = [...slots]; ns[active] = c; setSlots(ns); };
+            const create = (i) => { const ns = [...slots]; ns[i] = JSON.parse(JSON.stringify(DEFAULT_CHAR)); setSlots(ns); setActive(i); };
+            return active !== null ? <CharacterSheet data={slots[active]} onSave={save} onBack={() => setActive(null)} /> : <SlotManager slots={slots} onSelect={setActive} onCreate={create} onDelete={i => {const ns=[...slots]; ns[i]=null; setSlots(ns);}} />;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
