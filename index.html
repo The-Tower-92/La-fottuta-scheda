@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Daggerheart Mobile V0.4</title>
+    <title>Daggerheart Mobile V0.5</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -52,7 +52,16 @@
         .card-img { width: 100%; height: 100%; object-fit: contain; }
         .delete-btn { position: absolute; top: 10px; right: 10px; background: rgba(185, 28, 28, 0.9); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; z-index: 50; cursor: pointer; }
         
-        .char-portrait { width: 200px; height: 200px; border: 4px solid var(--gold); object-fit: cover; margin: 0 auto 16px auto; display: block; background: #27272a; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.7); }
+        .char-portrait { 
+            width: 200px; height: 200px; 
+            border: 4px solid var(--gold); 
+            object-fit: cover; 
+            margin: 0 auto 16px auto; 
+            display: block; 
+            background: #27272a; 
+            cursor: pointer; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.7); 
+        }
         
         .editing .dh-input { border-color: #525252; background: #27272a; pointer-events: auto; }
         .playing .dh-input { border-color: transparent; background: transparent; pointer-events: none; }
@@ -61,6 +70,15 @@
 
         @keyframes pulse-gold { 0% { box-shadow: 0 0 0 0 rgba(202, 138, 4, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(202, 138, 4, 0); } 100% { box-shadow: 0 0 0 0 rgba(202, 138, 4, 0); } }
         .crit-btn { animation: pulse-gold 2s infinite; background-color: #ca8a04 !important; color: black !important; border: 1px solid white; }
+        
+        /* Level Up Badge */
+        .level-badge {
+            background: linear-gradient(135deg, #ca8a04 0%, #a16207 100%);
+            color: black; font-weight: bold; padding: 4px 12px; border-radius: 20px;
+            font-family: 'Cinzel', serif; font-size: 1.1rem;
+            cursor: pointer; border: 2px solid #fde047;
+            box-shadow: 0 0 10px rgba(202, 138, 4, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -75,15 +93,18 @@
             instinct: "Percepire, Intuire, Orientarsi", presence: "Affascinare, Esibirsi, Ingannare", knowledge: "Rammentare, Analizzare, Compr."
         };
         const DICE = ["d4", "d6", "d8", "d10", "d12", "d20"];
+        const CLASSES_LIST = ["Bardo", "Druido", "Guardiano", "Ranger", "Ladro", "Serafino", "Stregone", "Guerriero", "Mago"];
         
         const DEFAULT_CHAR = {
-            name: "Eroe", playerName: "", class: "Bardo", subclass: "", heritage: "", level: 1, proficiency: 1, charImg: null,
+            name: "Eroe", playerName: "", 
+            classes: [{ name: "Bardo", subclass: "", level: 1 }], 
+            heritage: "", proficiency: 1, charImg: null,
             traits: { agility: 0, strength: 0, finesse: 0, instinct: 0, presence: 0, knowledge: 0 },
             evasion: 10, armorScore: 0,
             activeArmor: { name: "Armatura Base", baseThresholds: "5 / 10 / 15", baseScore: 1, traits: "Leggera", feature: "" },
             thresholds: { minor: 2, major: 3, severe: 4 },
             hp: { current: 0, max: 6 }, stress: { current: 0, max: 6 }, hope: { current: 2, max: 5 }, armorSlots: { current: 0, max: 6 },
-            experiences: Array(5).fill({ text: "", mod: 0, cost: 1 }),
+            experiences: Array(5).fill({ text: "", mod: 0 }),
             gold: { handfuls: 0, bags: 0, chests: 0 },
             classFeature: "", deck: [],
             weapons: [{ name: "", trait: "agility", range: "Mischia", damageRows: [{ count: 1, die: "d8", mod: 0, type: "fis" }], feature: "" }],
@@ -104,6 +125,7 @@
             };
         });
 
+        // --- COMPONENTS ---
         const PipTracker = ({ total, current, onChange, type }) => {
             const safeTotal = Math.max(0, parseInt(total) || 0);
             return (
@@ -132,20 +154,18 @@
             return (
                 <div className="flex items-center gap-2 mb-2 bg-[#27272a] p-1 rounded border border-[#3f3f46]">
                     <input value={exp.text} onChange={(e) => update('text', e.target.value)} className={`bg-transparent text-sm text-gray-200 flex-1 px-2 focus:outline-none ${!isEditMode ? 'pointer-events-none' : ''}`} placeholder="Esperienza..." />
-                    
-                    {isEditMode && (
-                        <div className="flex items-center gap-1 border-l border-[#525252] px-2">
-                            <span className="text-[8px] text-gray-500 uppercase">Costo</span>
-                            <select value={exp.cost || 1} onChange={(e) => update('cost', parseInt(e.target.value))} className="bg-transparent text-xs text-[#facc15] font-bold">
-                                {[1,2,3,4,5].map(n => <option key={n} value={n} className="bg-[#1e1e1e]">{n}</option>)}
-                            </select>
-                        </div>
-                    )}
-                    
                     <div className="flex items-center border-l border-[#525252] pl-2">
                         {isEditMode && <div onClick={() => exp.mod > -10 && update('mod', exp.mod - 1)} className="stat-arrow text-xs cursor-pointer px-1">▼</div>}
                         <div className={`text-sm font-bold w-6 text-center ${exp.mod === 0 ? 'text-gray-600' : 'text-[#ca8a04]'}`}>{exp.mod > 0 ? '+'+exp.mod : exp.mod}</div>
                         {isEditMode && <div onClick={() => exp.mod < 10 && update('mod', exp.mod + 1)} className="stat-arrow text-xs cursor-pointer px-1">▲</div>}
+                    </div>
+                    <div className="flex flex-col items-center justify-center border-l border-[#525252] pl-2 ml-1 w-10">
+                        <span className="text-[8px] text-gray-500 uppercase">Costo</span>
+                        {isEditMode ? 
+                            <select value={exp.cost || 1} onChange={(e) => update('cost', parseInt(e.target.value))} className="bg-[#121212] text-xs text-white p-0 border border-gray-600 rounded">
+                                {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                            </select>
+                        : <span className="text-xs font-bold text-purple-400">{exp.cost || 1}</span>}
                     </div>
                 </div>
             );
@@ -173,7 +193,7 @@
             </div>
         );
 
-        const DiceModal = ({ isOpen, onClose, modifier, traitName, experiences, onResult, isAttack, currentHope, onApplyResources }) => {
+        const DiceModal = ({ isOpen, onClose, modifier, traitName, experiences, onResult, isAttack, currentHope }) => {
             const [result, setResult] = useState(null);
             const [advMode, setAdvMode] = useState('normal'); 
             const [extraBonus, setExtraBonus] = useState(0);
@@ -185,31 +205,24 @@
 
             if (!isOpen) return null;
 
-            const toggleExp = (idx) => { const newSet = new Set(selectedExps); newSet.has(idx) ? newSet.delete(idx) : newSet.add(idx); setSelectedExps(newSet); };
+            const getSelectedCost = () => { let cost = 0; selectedExps.forEach(idx => cost += (experiences[idx].cost || 1)); return cost; };
+            const totalExpCost = getSelectedCost();
+            const canAfford = (idx) => { if (selectedExps.has(idx)) return true; return (totalExpCost + (experiences[idx].cost || 1)) <= currentHope; };
+            const toggleExp = (idx) => { if (!selectedExps.has(idx) && !canAfford(idx)) return; const newSet = new Set(selectedExps); newSet.has(idx) ? newSet.delete(idx) : newSet.add(idx); setSelectedExps(newSet); };
 
             const roll = () => {
                 const hope = Math.floor(Math.random() * 12) + 1; const fear = Math.floor(Math.random() * 12) + 1;
                 let adv = (advMode !== 'normal') ? Math.floor(Math.random() * 6) + 1 : 0;
-                
-                let expBonus = 0; 
-                let totalCost = 0;
-                selectedExps.forEach(idx => {
-                    expBonus += (parseInt(experiences[idx].mod) || 0);
-                    totalCost += (parseInt(experiences[idx].cost) || 1);
-                });
-
+                let expBonus = 0; selectedExps.forEach(idx => expBonus += (parseInt(experiences[idx].mod) || 0));
                 let total = hope + fear + (parseInt(modifier) || 0) + (advMode === 'adv' ? adv : advMode === 'dis' ? -adv : 0) + expBonus + extraBonus;
                 const isCrit = hope === fear;
-                const isHopeResult = hope > fear;
+                const isHopeMove = hope > fear;
                 
-                setResult({ hope, fear, adv, total, isCrit, isHope: isHopeResult });
-                
-                // Automatic Resource Update Callback
-                if (onApplyResources) onApplyResources(totalCost, isCrit, isHopeResult);
-                
-                // Trigger crit pending only if it's an attack roll and is a crit
-                if (onResult) onResult(isCrit && isAttack);
+                setResult({ hope, fear, adv, total, isCrit, isHopeMove });
+                if (onRollComplete) onRollComplete({ isCrit: isCrit, isHopeMove: isHopeMove, isAttack: isAttack, cost: totalExpCost });
             };
+
+            const onRollComplete = onResult;
 
             return (
                 <div className="modal-overlay" onClick={onClose}>
@@ -219,20 +232,10 @@
                             <div className="space-y-4">
                                 <div className="toggle-group"><div className={`toggle-btn ${advMode === 'dis' ? 'active-dis' : ''}`} onClick={() => setAdvMode('dis')}>Svant. (-1d6)</div><div className={`toggle-btn ${advMode === 'normal' ? 'active' : ''}`} onClick={() => setAdvMode('normal')}>Normale</div><div className={`toggle-btn ${advMode === 'adv' ? 'active-adv' : ''}`} onClick={() => setAdvMode('adv')}>Vant. (+1d6)</div></div>
                                 <div className="text-gray-400 text-sm">Bonus Caratteristica: <b className="text-white text-lg">{modifier >= 0 ? `+${modifier}` : modifier}</b></div>
-                                
                                 <div className="text-left bg-[#27272a] p-2 rounded">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <div className="text-[10px] uppercase text-gray-500 font-bold">Aggiungi Esperienze</div>
-                                        <div className="text-[10px] text-[#facc15]">Speranza: {currentHope}</div>
-                                    </div>
-                                    {experiences.map((exp, i) => exp.text && (
-                                        <div key={i} onClick={() => toggleExp(i)} className={`flex justify-between items-center text-xs p-1 rounded cursor-pointer mb-1 ${selectedExps.has(i) ? 'bg-[#ca8a04] text-black font-bold' : 'text-gray-300 hover:bg-gray-700'}`}>
-                                            <span>{exp.text} ({exp.mod > 0 ? '+'+exp.mod : exp.mod})</span>
-                                            <span className="text-[10px] opacity-80">-{exp.cost || 1} Speranza</span>
-                                        </div>
-                                    ))}
+                                    <div className="flex justify-between items-center mb-2"><span className="text-[10px] uppercase text-gray-500 font-bold">Aggiungi Esperienze</span><span className={`text-xs font-bold ${totalExpCost > 0 ? 'text-purple-400' : 'text-gray-600'}`}>Costo: {totalExpCost} / {currentHope}</span></div>
+                                    {experiences.map((exp, i) => exp.text && (<div key={i} onClick={() => toggleExp(i)} className={`flex justify-between items-center text-xs p-1 rounded cursor-pointer ${selectedExps.has(i) ? 'bg-[#ca8a04] text-black font-bold' : (!canAfford(i) ? 'opacity-30 cursor-not-allowed' : 'text-gray-300 hover:bg-gray-700')}`}><span>{exp.text}</span><div className="flex gap-2"><span>{exp.mod > 0 ? '+'+exp.mod : exp.mod}</span><span className="text-[10px] opacity-70">({exp.cost || 1} sp)</span></div></div>))}
                                 </div>
-
                                 <div className="flex items-center justify-center gap-4"><span className="text-xs uppercase text-gray-500">Extra Bonus</span><button onClick={() => extraBonus > -20 && setExtraBonus(extraBonus - 1)} className="text-xl px-2 text-gray-400 bg-[#27272a] rounded">-</button><span className="text-lg font-bold w-8">{extraBonus > 0 ? '+'+extraBonus : extraBonus}</span><button onClick={() => extraBonus < 20 && setExtraBonus(extraBonus + 1)} className="text-xl px-2 text-gray-400 bg-[#27272a] rounded">+</button></div>
                                 <button onClick={roll} className="w-full py-3 bg-[#ca8a04] text-black font-bold rounded text-lg uppercase tracking-wide mt-2">Lancia</button>
                             </div>
@@ -241,14 +244,32 @@
                                 <div className="flex justify-center gap-6 items-end"><div><span className="block text-[10px] text-gray-500 uppercase">Speranza</span><span className="text-4xl font-cinzel hope-text">{result.hope}</span></div><div><span className="block text-[10px] text-gray-500 uppercase">Paura</span><span className="text-4xl font-cinzel fear-text">{result.fear}</span></div></div>
                                 {advMode !== 'normal' && <div className="text-sm text-gray-400">{advMode === 'adv' ? 'Vantaggio (+d6)' : 'Svantaggio (-d6)'}: <span className={`font-bold ${advMode === 'adv' ? 'text-green-500' : 'text-red-500'} ml-1`}>{advMode === 'adv' ? '+' : '-'}{result.adv}</span></div>}
                                 <div className="bg-[#27272a] p-3 rounded-lg border border-[#3f3f46]"><div className="text-[10px] uppercase text-gray-500">Totale</div><div className="text-5xl font-cinzel text-white">{result.total}</div></div>
-                                <div className={`py-2 px-3 rounded font-bold text-sm ${result.isCrit ? 'bg-green-900 text-green-200' : result.isHope ? 'bg-yellow-900/40 text-yellow-200' : 'bg-purple-900/40 text-purple-200'}`}>{result.isCrit ? "SUCCESSO CRITICO" : result.isHope ? "AZIONE CON SPERANZA" : "AZIONE CON PAURA"}</div>
-                                
+                                <div className={`py-2 px-3 rounded font-bold text-sm ${result.isCrit ? 'bg-green-900 text-green-200' : result.isHopeMove ? 'bg-yellow-900/40 text-yellow-200' : 'bg-purple-900/40 text-purple-200'}`}>{result.isCrit ? "SUCCESSO CRITICO" : result.isHopeMove ? "AZIONE CON SPERANZA" : "AZIONE CON PAURA"}</div>
                                 {result.isCrit && (<div className="text-xs text-[#ca8a04] font-bold border border-[#ca8a04] p-2 rounded bg-[#ca8a04]/10">Guadagni 1 Speranza e cancelli 1 Stress!</div>)}
-                                {result.isHope && !result.isCrit && (<div className="text-xs text-[#facc15] font-bold border border-[#facc15] p-2 rounded bg-[#facc15]/10">Guadagni 1 Speranza!</div>)}
-
+                                {!result.isCrit && result.isHopeMove && (<div className="text-xs text-[#ca8a04] font-bold border border-[#ca8a04] p-2 rounded bg-[#ca8a04]/10">Guadagni 1 Speranza!</div>)}
                                 <button onClick={onClose} className="mt-2 text-gray-500 text-sm underline">Chiudi</button>
                             </div>
                         )}
+                    </div>
+                </div>
+            );
+        };
+
+        const LevelUpModal = ({ isOpen, onClose, classes, onLevelUp }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-[#ca8a04] w-full max-w-sm rounded-lg p-5 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-xl text-[#ca8a04] mb-4">Avanzamento di Livello</h2>
+                        <p className="text-gray-300 text-sm mb-4">Scegli quale classe far avanzare:</p>
+                        <div className="space-y-3">
+                            {classes.map((c, i) => (
+                                <button key={i} onClick={() => onLevelUp(i)} className="w-full py-3 bg-[#27272a] hover:bg-[#3f3f46] border border-[#3f3f46] text-white font-bold rounded uppercase tracking-wide">
+                                    {c.name} (Lv. {c.level} → {c.level + 1})
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={onClose} className="mt-4 text-gray-500 text-sm underline">Annulla</button>
                     </div>
                 </div>
             );
@@ -310,11 +331,14 @@
         const CharacterSheet = ({ data, onSave, onBack }) => {
             const [char, setChar] = useState(() => {
                 const c = {...data};
+                // Migration: Convert single class to array if needed
+                if (!c.classes) c.classes = [{ name: c.class || "Bardo", subclass: c.subclass || "", level: parseInt(c.level) || 1 }];
+                // Ensure heritage is preserved
+                if (!c.heritage) c.heritage = "";
+                
                 if(!c.thresholds) c.thresholds = {minor:2, major:3, severe:4};
                 if(!c.experiences || c.experiences.length === 0) c.experiences = Array(5).fill({ text: "", mod: 0, cost: 1 });
-                // Check if old exp structure exists, ensure cost field
-                c.experiences = c.experiences.map(e => e.cost ? e : {...e, cost: 1});
-                
+                c.experiences = c.experiences.map(e => ({...e, cost: e.cost || 1}));
                 if(!c.classFeature) c.classFeature = ""; if(!c.deck) c.deck = []; if(!c.playerName) c.playerName = "";
                 if(!c.activeArmor) c.activeArmor = { name: "Armatura Base", baseScore: "+2", baseThresholds: "5 / 10 / 15", feature: "" };
                 if(!c.potions) c.potions = [];
@@ -326,14 +350,45 @@
             const [dmgState, setDmgState] = useState({ open: false, total: 0, detail: '', title: '' });
             const [isEditMode, setIsEditMode] = useState(false);
             const [critPending, setCritPending] = useState(false);
+            const [levelUpModalOpen, setLevelUpModalOpen] = useState(false);
             const imgInput = useRef(null);
 
             useEffect(() => onSave(char), [char]);
+
+            // Total Level Calc
+            const totalLevel = char.classes.reduce((sum, c) => sum + (parseInt(c.level) || 0), 0);
 
             const update = (f, v) => setChar(p => ({...p, [f]: v}));
             const updateDeep = (cat, field, val) => setChar(p => ({...p, [cat]: {...p[cat], [field]: val}}));
             const updateTrait = (k, v) => setChar(p => ({...p, traits: {...p.traits, [k]: parseInt(v)||0}}));
             const updateExp = (idx, newExp) => { const newExps = [...char.experiences]; newExps[idx] = newExp; setChar(p => ({...p, experiences: newExps})); };
+
+            // Class Management
+            const updateClass = (idx, field, val) => {
+                const newClasses = [...char.classes];
+                newClasses[idx] = { ...newClasses[idx], [field]: val };
+                setChar(p => ({...p, classes: newClasses}));
+            };
+            const addClass = () => {
+                if (char.classes.length < 2) {
+                    setChar(p => ({...p, classes: [...p.classes, { name: "Bardo", subclass: "", level: 1 }]}));
+                }
+            };
+            const handleLevelUpClick = () => {
+                if (!isEditMode && totalLevel < 20) {
+                    if (char.classes.length === 1) {
+                        // Direct level up
+                        updateClass(0, 'level', char.classes[0].level + 1);
+                    } else {
+                        // Open modal
+                        setLevelUpModalOpen(true);
+                    }
+                }
+            };
+            const performLevelUp = (classIndex) => {
+                updateClass(classIndex, 'level', char.classes[classIndex].level + 1);
+                setLevelUpModalOpen(false);
+            };
 
             const handleImgUpload = async (e) => { if(e.target.files[0]) update('charImg', await compressImage(e.target.files[0])); };
 
@@ -369,35 +424,21 @@
                 setCritPending(false); 
             };
 
-            const onDiceResult = (isCritAttack) => {
-                // If it's a critical attack, set pending state
-                if (isCritAttack) setCritPending(true);
-                else if (diceState.isAttack) setCritPending(false); // Only reset if it was an attack roll
-            };
-
-            const applyResources = (cost, isCrit, isHopeResult) => {
+            const onDiceResult = (data) => {
                 setChar(prev => {
-                    let newHope = prev.hope.current - cost;
+                    let newHope = prev.hope.current;
                     let newStress = prev.stress.current;
-
-                    if (isCrit) {
-                        newHope += 1;
-                        newStress -= 1;
-                    } else if (isHopeResult) {
-                        newHope += 1;
+                    if (data.cost > 0) newHope = Math.max(0, newHope - data.cost);
+                    if (data.isCrit) {
+                        if (newHope < prev.hope.max) newHope += 1;
+                        if (newStress > 0) newStress -= 1;
+                    } else if (data.isHopeMove) {
+                        if (newHope < prev.hope.max) newHope += 1;
                     }
-
-                    // Clamping
-                    if (newHope < 0) newHope = 0;
-                    if (newHope > prev.hope.max) newHope = prev.hope.max;
-                    if (newStress < 0) newStress = 0;
-
-                    return {
-                        ...prev,
-                        hope: { ...prev.hope, current: newHope },
-                        stress: { ...prev.stress, current: newStress }
-                    };
+                    return { ...prev, hope: { ...prev.hope, current: newHope }, stress: { ...prev.stress, current: newStress } };
                 });
+                if (data.isCrit && data.isAttack) setCritPending(true);
+                else setCritPending(false);
             };
 
             if (view === 'deck') return <DeckView deck={char.deck} onBack={() => setView('sheet')} onAddCard={(img) => setChar(p => ({...p, deck: [...p.deck, img]}))} onDeleteCard={(idx) => setChar(p => ({...p, deck: p.deck.filter((_, i) => i !== idx)}))} />;
@@ -411,29 +452,49 @@
 
                     <div className="p-3 space-y-4">
                         {/* 1. Image */}
-                        <div className="text-center mt-2">
+                        <div className="text-center mt-2 relative">
                             <input type="file" ref={imgInput} onChange={handleImgUpload} className="hidden" accept="image/*"/>
                             <img src={char.charImg || "https://placehold.co/250x250/27272a/gray?text=IMG"} className="char-portrait" onClick={()=>imgInput.current.click()} />
                             
-                            {/* 2. Hero Name */}
-                            {isEditMode ? 
-                                <input value={char.name} onChange={e => update('name', e.target.value)} className="font-cinzel text-white font-bold leading-none text-2xl w-full bg-transparent text-center focus:outline-none border-b border-[#3f3f46]" placeholder="Nome Eroe" />
-                                : <h1 className="font-cinzel text-white font-bold leading-none text-2xl">{char.name || "Eroe"}</h1>
-                            }
-                            
-                            {/* 3. Info Line */}
-                            <div className="text-[10px] text-[#ca8a04] uppercase tracking-widest mt-1 font-bold">
+                            {/* 2. Hero Name & Total Level */}
+                            <div className="flex items-center justify-center gap-3">
                                 {isEditMode ? 
-                                    <div className="grid grid-cols-2 gap-2 mt-2">
-                                        <select value={char.class} onChange={e => setChar(p => ({...p, class: e.target.value}))} className="bg-[#27272a] text-white p-1 rounded"><option value="Bardo">Bardo</option><option value="Druido">Druido</option><option value="Guardiano">Guardiano</option><option value="Ranger">Ranger</option><option value="Ladro">Ladro</option><option value="Serafino">Serafino</option><option value="Stregone">Stregone</option><option value="Guerriero">Guerriero</option><option value="Mago">Mago</option></select>
-                                        <input value={char.heritage} onChange={e => update('heritage', e.target.value)} className="bg-[#27272a] text-white p-1 rounded" placeholder="Stirpe" />
-                                        <input value={char.subclass} onChange={e => update('subclass', e.target.value)} className="bg-[#27272a] text-white p-1 rounded" placeholder="Sottoclasse" />
-                                        <input type="number" value={char.level} onChange={e => update('level', e.target.value)} className="bg-[#27272a] text-white p-1 rounded" placeholder="Liv" />
-                                        <input value={char.playerName} onChange={e => update('playerName', e.target.value)} className="bg-[#27272a] text-white p-1 rounded col-span-2" placeholder="Giocatore" />
-                                    </div>
-                                : 
-                                    `${char.class} - ${char.heritage} ${char.subclass} - Liv. ${char.level}`
+                                    <input value={char.name} onChange={e => update('name', e.target.value)} className="font-cinzel text-white font-bold leading-none text-2xl w-full bg-transparent text-center focus:outline-none border-b border-[#3f3f46]" placeholder="Nome Eroe" />
+                                    : <h1 className="font-cinzel text-white font-bold leading-none text-2xl">{char.name || "Eroe"}</h1>
                                 }
+                                <div onClick={handleLevelUpClick} className={`level-badge ${!isEditMode && totalLevel < 20 ? 'animate-pulse' : ''}`}>
+                                    {totalLevel}
+                                </div>
+                            </div>
+                            
+                            {/* 3. Info Section (Heritage & Classes) */}
+                            <div className="mt-2 text-sm text-[#ca8a04] font-bold">
+                                {isEditMode ? (
+                                    <div className="grid gap-2">
+                                        <div><label className="text-[10px] text-gray-500 block">Stirpe</label><input value={char.heritage} onChange={e => update('heritage', e.target.value)} className="dh-input py-1 text-sm" placeholder="Stirpe" /></div>
+                                        {/* Class Editor */}
+                                        {char.classes.map((c, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center bg-[#27272a] p-1 rounded">
+                                                <select value={c.name} onChange={e => updateClass(idx, 'name', e.target.value)} className="bg-transparent text-white text-xs p-1 rounded border border-gray-600">
+                                                    {CLASSES_LIST.map(cn => <option key={cn} value={cn}>{cn}</option>)}
+                                                </select>
+                                                <input value={c.subclass} onChange={e => updateClass(idx, 'subclass', e.target.value)} className="bg-transparent text-white text-xs p-1 flex-1 border-b border-gray-600 focus:outline-none" placeholder="Sottoclasse" />
+                                                <span className="text-white text-xs font-bold px-2">Lv.{c.level}</span>
+                                            </div>
+                                        ))}
+                                        {char.classes.length < 2 && <button onClick={addClass} className="text-xs text-white border border-gray-600 rounded p-1">+ Aggiungi Classe</button>}
+                                        <div className="mt-1"><label className="text-[10px] text-gray-500 block">Nome Giocatore</label><input value={char.playerName} onChange={e => update('playerName', e.target.value)} className="dh-input py-1 text-sm" /></div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center">
+                                        <div className="text-gray-300 mb-1">{char.heritage || "Stirpe Sconosciuta"}</div>
+                                        {char.classes.map((c, idx) => (
+                                            <div key={idx} className="uppercase tracking-widest text-xs">
+                                                {c.name} {c.subclass ? `- ${c.subclass}` : ""} (Lv.{c.level})
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -502,18 +563,9 @@
                             </div>
                         </div>
                     </div>
-                    <DiceModal 
-                        isOpen={diceState.open} 
-                        onClose={() => setDiceState({...diceState, open:false})} 
-                        modifier={diceState.mod} 
-                        traitName={diceState.name} 
-                        experiences={char.experiences} 
-                        onResult={onDiceResult} 
-                        isAttack={diceState.isAttack} 
-                        currentHope={char.hope.current}
-                        onApplyResources={applyResources}
-                    />
+                    <DiceModal isOpen={diceState.open} onClose={() => setDiceState({...diceState, open:false})} modifier={diceState.mod} traitName={diceState.name} experiences={char.experiences} onResult={onDiceResult} isAttack={diceState.isAttack} currentHope={char.hope.current} />
                     <ResultModal isOpen={dmgState.open} onClose={() => setDmgState({...dmgState, open:false})} total={dmgState.total} detail={dmgState.detail} title={dmgState.title} />
+                    <LevelUpModal isOpen={levelUpModalOpen} onClose={() => setLevelUpModalOpen(false)} classes={char.classes} onLevelUp={performLevelUp} />
                 </div>
             );
         };
@@ -521,14 +573,14 @@
         const SlotManager = ({ slots, onSelect, onDelete, onCreate }) => (
             <div className="p-4 max-w-md mx-auto min-h-screen flex flex-col justify-center">
                 <h1 className="text-3xl font-cinzel text-center text-[#ca8a04] mb-8">Daggerheart</h1>
-                <div className="space-y-3">{slots.map((s, i) => (<div key={i} className="bg-[#1e1e1e] border border-[#3f3f46] rounded-lg p-4 flex justify-between items-center" onClick={() => !s ? onCreate(i) : onSelect(i)}><div><div className="text-[10px] text-gray-500 uppercase font-bold">Slot {i+1}</div>{s ? (<div><div className="text-lg font-bold text-white">{s.name}</div><div className="text-xs text-[#ca8a04]">{s.class} Liv. {s.level}</div></div>) : <div className="text-gray-600 italic">Vuoto - Crea Nuovo</div>}</div>{s && <button onClick={(e) => {e.stopPropagation(); if(confirm('Eliminare?')) onDelete(i);}} className="text-red-900 bg-red-900/20 px-3 py-1 rounded text-xs">X</button>}</div>))}</div>
+                <div className="space-y-3">{slots.map((s, i) => (<div key={i} className="bg-[#1e1e1e] border border-[#3f3f46] rounded-lg p-4 flex justify-between items-center" onClick={() => !s ? onCreate(i) : onSelect(i)}><div><div className="text-[10px] text-gray-500 uppercase font-bold">Slot {i+1}</div>{s ? (<div><div className="text-lg font-bold text-white">{s.name}</div><div className="text-xs text-[#ca8a04]">{s.classes[0].name} Lv. {s.classes.reduce((acc,c)=>acc+(parseInt(c.level)||0),0)}</div></div>) : <div className="text-gray-600 italic">Vuoto - Crea Nuovo</div>}</div>{s && <button onClick={(e) => {e.stopPropagation(); if(confirm('Eliminare?')) onDelete(i);}} className="text-red-900 bg-red-900/20 px-3 py-1 rounded text-xs">X</button>}</div>))}</div>
             </div>
         );
 
         const App = () => {
-            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v10') || '[null,null,null,null,null]'));
+            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v11') || '[null,null,null,null,null]'));
             const [active, setActive] = useState(null);
-            useEffect(() => localStorage.setItem('dh_mobile_v10', JSON.stringify(slots)), [slots]);
+            useEffect(() => localStorage.setItem('dh_mobile_v11', JSON.stringify(slots)), [slots]);
             const save = (c) => { const ns = [...slots]; ns[active] = c; setSlots(ns); };
             const create = (i) => { const ns = [...slots]; ns[i] = JSON.parse(JSON.stringify(DEFAULT_CHAR)); setSlots(ns); setActive(i); };
             return active !== null ? <CharacterSheet data={slots[active]} onSave={save} onBack={() => setActive(null)} /> : <SlotManager slots={slots} onSelect={setActive} onCreate={create} onDelete={i => {const ns=[...slots]; ns[i]=null; setSlots(ns);}} />;
