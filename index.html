@@ -22,6 +22,8 @@
         .pip.stress.active { background-color: #d8b4fe; border-color: #d8b4fe; box-shadow: 0 0 6px #d8b4fe; }
         .pip.hope.active { background-color: #facc15; border-color: #facc15; box-shadow: 0 0 6px #facc15; }
         .pip.armor.active { background-color: #60a5fa; border-color: #60a5fa; box-shadow: 0 0 6px #60a5fa; }
+        .pip.gold-chest.active { background-color: #fbbf24; border-color: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+        .pip.gold.active { background-color: #fbbf24; border-color: #fbbf24; }
 
         .dh-panel { background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px; position: relative; }
         .dh-input { background: #27272a; border: 1px solid #3f3f46; color: white; padding: 8px; border-radius: 4px; width: 100%; font-size: 1rem; transition: all 0.2s; }
@@ -46,22 +48,37 @@
 
         .attributes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .deck-scroll { display: flex; overflow-x: auto; gap: 16px; padding: 10px 0; scroll-snap-type: x mandatory; }
-        .card-view { flex: 0 0 85vw; height: 60vh; background: #000; border-radius: 12px; overflow: hidden; position: relative; scroll-snap-align: center; border: 2px solid #3f3f46; }
+        
+        .card-view { 
+            flex: 0 0 85vw; height: 60vh; background: #000; 
+            border-radius: 12px; overflow: hidden; position: relative; 
+            scroll-snap-align: center; border: 2px solid #3f3f46; 
+            transition: all 0.2s;
+        }
+        .card-view.active-card { border-color: var(--gold); box-shadow: 0 0 15px rgba(202, 138, 4, 0.3); }
+        .card-view.inactive-card { opacity: 0.6; border-color: #3f3f46; }
+        
         .card-img { width: 100%; height: 100%; object-fit: contain; }
-        .delete-btn { position: absolute; top: 10px; right: 10px; background: rgba(185, 28, 28, 0.8); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .delete-btn { position: absolute; top: 10px; right: 10px; background: rgba(185, 28, 28, 0.9); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; z-index: 50; cursor: pointer; }
         
         .char-portrait { 
-            width: 100%; max-width: 250px; aspect-ratio: 1/1; 
-            border: 4px solid var(--gold); object-fit: cover; 
-            margin: 0 auto 16px auto; display: block; 
-            background: #27272a; cursor: pointer; 
-            border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+            width: 200px; height: 200px; 
+            border: 4px solid var(--gold); 
+            object-fit: cover; 
+            margin: 0 auto 16px auto; 
+            display: block; 
+            background: #27272a; 
+            cursor: pointer; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.7); 
         }
         
         .editing .dh-input { border-color: #525252; background: #27272a; pointer-events: auto; }
         .playing .dh-input { border-color: transparent; background: transparent; pointer-events: none; }
         .playing .edit-only { display: none; }
         .hide-scroll::-webkit-scrollbar { display: none; } .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes pulse-gold { 0% { box-shadow: 0 0 0 0 rgba(202, 138, 4, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(202, 138, 4, 0); } 100% { box-shadow: 0 0 0 0 rgba(202, 138, 4, 0); } }
+        .crit-btn { animation: pulse-gold 2s infinite; background-color: #ca8a04 !important; color: black !important; border: 1px solid white; }
     </style>
 </head>
 <body>
@@ -81,12 +98,13 @@
             name: "Eroe", playerName: "", class: "Bardo", subclass: "", heritage: "", level: 1, proficiency: 1, charImg: null,
             traits: { agility: 0, strength: 0, finesse: 0, instinct: 0, presence: 0, knowledge: 0 },
             evasion: 10, armorScore: 0,
-            activeArmor: { name: "Armatura Base", baseScore: "+2", baseThresholds: "5 / 10 / 15", feature: "", traits: "Leggera" },
+            activeArmor: { name: "Armatura Base", baseThresholds: "5 / 10 / 15", baseScore: 1, traits: "Leggera", feature: "" },
             thresholds: { minor: 2, major: 3, severe: 4 },
             hp: { current: 0, max: 6 }, stress: { current: 0, max: 6 }, hope: { current: 2, max: 5 }, armorSlots: { current: 0, max: 6 },
             experiences: Array(5).fill({ text: "", mod: 0 }),
             gold: { handfuls: 0, bags: 0, chests: 0 },
-            classFeature: "", deck: [],
+            classFeature: "", 
+            deck: [], // New Structure: [{id, img, active: bool}]
             weapons: [{ name: "", trait: "agility", range: "Mischia", damageRows: [{ count: 1, die: "d8", mod: 0, type: "fis" }], feature: "" }],
             potions: [],
             notes: ""
@@ -106,13 +124,16 @@
         });
 
         // --- COMPONENTS ---
-        const PipTracker = ({ total, current, onChange, type }) => (
-            <div className="pip-container">
-                {[...Array(total)].map((_, i) => (
-                    <div key={i} onClick={() => onChange((i === 0 && current === 1) ? 0 : (i + 1 === current ? current - 1 : i + 1))} className={`pip ${type} ${i < current ? 'active' : ''}`}></div>
-                ))}
-            </div>
-        );
+        const PipTracker = ({ total, current, onChange, type }) => {
+            const safeTotal = Math.max(0, parseInt(total) || 0);
+            return (
+                <div className="pip-container">
+                    {[...Array(safeTotal)].map((_, i) => (
+                        <div key={i} onClick={() => onChange((i === 0 && current === 1) ? 0 : (i + 1 === current ? current - 1 : i + 1))} className={`pip ${type} ${i < current ? 'active' : ''}`}></div>
+                    ))}
+                </div>
+            );
+        };
 
         const StatBox = ({ label, value, skillText, statKey, onClick, onChange, isEditMode }) => (
             <div className={`stat-box ${!isEditMode ? 'hover:border-[#ca8a04]' : ''}`} onClick={onClick}>
@@ -127,18 +148,10 @@
         );
 
         const ExperienceRow = ({ exp, index, onUpdate, isEditMode }) => {
-            const update = (field, val) => {
-                const n = {...exp, [field]: val};
-                onUpdate(n);
-            };
+            const update = (field, val) => { const n = {...exp, [field]: val}; onUpdate(n); };
             return (
                 <div className="flex items-center gap-2 mb-2 bg-[#27272a] p-1 rounded border border-[#3f3f46]">
-                    <input 
-                        value={exp.text} 
-                        onChange={(e) => update('text', e.target.value)} 
-                        className={`bg-transparent text-sm text-gray-200 flex-1 px-2 focus:outline-none ${!isEditMode ? 'pointer-events-none' : ''}`}
-                        placeholder="Esperienza..."
-                    />
+                    <input value={exp.text} onChange={(e) => update('text', e.target.value)} className={`bg-transparent text-sm text-gray-200 flex-1 px-2 focus:outline-none ${!isEditMode ? 'pointer-events-none' : ''}`} placeholder="Esperienza..." />
                     <div className="flex items-center border-l border-[#525252] pl-2">
                         {isEditMode && <div onClick={() => exp.mod > -10 && update('mod', exp.mod - 1)} className="stat-arrow text-xs cursor-pointer px-1">▼</div>}
                         <div className={`text-sm font-bold w-6 text-center ${exp.mod === 0 ? 'text-gray-600' : 'text-[#ca8a04]'}`}>{exp.mod > 0 ? '+'+exp.mod : exp.mod}</div>
@@ -151,76 +164,62 @@
         const PotionManager = ({ potions, onUpdate, isEditMode, onUse }) => {
             const [newPot, setNewPot] = useState({ name: "", die: "d4", target: "HP" });
             const addPotion = () => { if(newPot.name) { onUpdate([...potions, { ...newPot, count: 1, id: Date.now() }]); setNewPot({ name: "", die: "d4", target: "HP" }); }};
-            const updateCount = (id, delta) => {
-                const updated = potions.map(p => p.id === id ? { ...p, count: Math.max(0, p.count + delta) } : p).filter(p => p.count > 0 || isEditMode);
-                onUpdate(updated);
-            };
-
+            const updateCount = (id, delta) => { const updated = potions.map(p => p.id === id ? { ...p, count: Math.max(0, p.count + delta) } : p).filter(p => p.count > 0 || isEditMode); onUpdate(updated); };
             return (
                 <div className="dh-panel border-l-4 border-l-purple-600">
                     <h3 className="font-cinzel text-sm text-purple-400 mb-2 uppercase">Inventario Pozioni</h3>
                     {isEditMode && (
-                        <div className="flex gap-2 mb-4 bg-black/30 p-2 rounded">
-                            <input value={newPot.name} onChange={e => setNewPot({...newPot, name: e.target.value})} className="dh-input text-xs" placeholder="Nome" />
-                            <select value={newPot.die} onChange={e => setNewPot({...newPot, die: e.target.value})} className="dh-input text-xs w-16">{DICE.map(d=><option key={d}>{d}</option>)}</select>
-                            <select value={newPot.target} onChange={e => setNewPot({...newPot, target: e.target.value})} className="dh-input text-xs w-20"><option>HP</option><option>Stress</option><option>Armor</option><option>Hope</option></select>
-                            <button onClick={addPotion} className="text-purple-400 font-bold px-2">+</button>
-                        </div>
+                        <div className="flex gap-2 mb-4 bg-black/30 p-2 rounded"><input value={newPot.name} onChange={e => setNewPot({...newPot, name: e.target.value})} className="dh-input text-xs flex-1" placeholder="Nome" /><select value={newPot.die} onChange={e => setNewPot({...newPot, die: e.target.value})} className="dh-input text-xs w-16">{DICE.map(d=><option key={d}>{d}</option>)}</select><select value={newPot.target} onChange={e => setNewPot({...newPot, target: e.target.value})} className="dh-input text-xs w-20"><option>HP</option><option>Stress</option><option>Armor</option><option>Hope</option></select><button onClick={addPotion} className="text-purple-400 font-bold px-2">+</button></div>
                     )}
-                    <div className="space-y-2">
-                        {potions.length === 0 && <div className="text-xs text-gray-500 italic text-center">Nessuna pozione.</div>}
-                        {potions.map(p => (
-                            <div key={p.id} className="flex justify-between items-center bg-[#121212] p-2 rounded border border-[#3f3f46]">
-                                <div><div className="font-bold text-sm text-purple-200">{p.name}</div><div className="text-[10px] text-gray-400">{p.die} {p.target}</div></div>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex items-center bg-[#27272a] rounded">
-                                        <button onClick={() => updateCount(p.id, -1)} className="px-2 text-gray-400 hover:text-white">-</button>
-                                        <span className="text-sm font-bold w-6 text-center">{p.count}</span>
-                                        <button onClick={() => updateCount(p.id, 1)} className="px-2 text-gray-400 hover:text-white">+</button>
-                                    </div>
-                                    <button onClick={() => { if(p.count > 0) { onUse(p); updateCount(p.id, -1); } }} className="bg-purple-900 hover:bg-purple-800 text-white text-[10px] px-3 py-1 rounded uppercase font-bold tracking-wider">Usa</button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <div className="space-y-2">{potions.length === 0 && <div className="text-xs text-gray-500 italic text-center">Nessuna pozione.</div>}{potions.map(p => (<div key={p.id} className="flex justify-between items-center bg-[#121212] p-2 rounded border border-[#3f3f46]"><div><div className="font-bold text-sm text-purple-200">{p.name}</div><div className="text-[10px] text-gray-400">{p.die} {p.target}</div></div><div className="flex items-center gap-2"><div className="flex items-center bg-[#27272a] rounded"><button onClick={() => updateCount(p.id, -1)} className="px-2 text-gray-400 hover:text-white font-bold">-</button><span className="text-sm font-bold w-6 text-center">{p.count}</span><button onClick={() => updateCount(p.id, 1)} className="px-2 text-gray-400 hover:text-white font-bold">+</button></div><button onClick={() => { if(p.count > 0) { onUse(p); updateCount(p.id, -1); } }} className="bg-purple-900 hover:bg-purple-800 text-white text-[10px] px-3 py-1 rounded uppercase font-bold tracking-wider shadow">Usa</button></div></div>))}</div>
                 </div>
             );
         };
 
         const ActiveArmorPanel = ({ armor, onUpdateArmor, isEditMode }) => (
             <div className="dh-panel border-l-4 border-l-blue-600 bg-[#1e1e1e]">
-                <div className="flex justify-between items-center mb-2"><h3 className="font-cinzel text-sm text-blue-400 uppercase">Armatura Attiva</h3>
-                    <div className="flex items-center gap-2"><span className="text-[10px] uppercase text-blue-300">Punt. Base</span>{isEditMode ? <select value={armor.baseScore} onChange={e=>onUpdateArmor('baseScore', parseInt(e.target.value))} className="bg-[#27272a] text-white text-sm border border-gray-600 rounded">{[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}</select> : <span className="font-bold text-lg text-white border border-blue-900 bg-blue-900/20 px-2 rounded">{armor.baseScore}</span>}</div>
-                </div>
-                <div className="grid gap-2">
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Nome</label><input value={armor.name} onChange={e => onUpdateArmor('name', e.target.value)} className={`dh-input font-bold ${!isEditMode ? 'read-only' : ''}`} /></div>
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Soglie Base</label><input value={armor.baseThresholds} onChange={e => onUpdateArmor('baseThresholds', e.target.value)} className={`dh-input text-xs ${!isEditMode ? 'read-only' : ''}`} /></div>
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Caratteristiche</label><input value={armor.traits} onChange={e => onUpdateArmor('traits', e.target.value)} className={`dh-input text-xs ${!isEditMode ? 'read-only' : ''}`} /></div>
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Peculiarità</label>{isEditMode ? <textarea value={armor.feature} onChange={e => onUpdateArmor('feature', e.target.value)} className="dh-input text-xs h-16" /> : <div className="text-xs text-gray-300 italic min-h-[1.5rem]">{armor.feature || "Nessuna peculiarità"}</div>}</div>
-                </div>
+                <div className="flex justify-between items-center mb-2"><h3 className="font-cinzel text-sm text-blue-400 uppercase">Armatura Attiva</h3><div className="flex items-center gap-2"><span className="text-[10px] uppercase text-blue-300">Punt. Base</span>{isEditMode ? <select value={armor.baseScore} onChange={e=>onUpdateArmor('baseScore', parseInt(e.target.value))} className="bg-[#27272a] text-white text-sm border border-gray-600 rounded">{[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}</select> : <span className="font-bold text-lg text-white border border-blue-900 bg-blue-900/20 px-2 rounded">{armor.baseScore}</span>}</div></div>
+                <div className="grid gap-2"><div><label className="text-[10px] text-gray-500 uppercase font-bold">Nome</label><input value={armor.name} onChange={e => onUpdateArmor('name', e.target.value)} className={`dh-input font-bold ${!isEditMode ? 'read-only' : ''}`} /></div><div><label className="text-[10px] text-gray-500 uppercase font-bold">Soglie Base</label><input value={armor.baseThresholds} onChange={e => onUpdateArmor('baseThresholds', e.target.value)} className={`dh-input text-xs ${!isEditMode ? 'read-only' : ''}`} /></div><div><label className="text-[10px] text-gray-500 uppercase font-bold">Caratteristiche</label><input value={armor.traits} onChange={e => onUpdateArmor('traits', e.target.value)} className={`dh-input text-xs ${!isEditMode ? 'read-only' : ''}`} /></div><div><label className="text-[10px] text-gray-500 uppercase font-bold">Peculiarità</label>{isEditMode ? <textarea value={armor.feature} onChange={e => onUpdateArmor('feature', e.target.value)} className="dh-input text-xs h-16" /> : <div className="text-xs text-gray-300 italic min-h-[1.5rem]">{armor.feature || "Nessuna peculiarità"}</div>}</div></div>
             </div>
         );
 
-        const DiceModal = ({ isOpen, onClose, modifier, traitName }) => {
+        const DiceModal = ({ isOpen, onClose, modifier, traitName, experiences, onResult, isAttack }) => {
             const [result, setResult] = useState(null);
             const [advMode, setAdvMode] = useState('normal'); 
-            useEffect(() => { if(isOpen) { setResult(null); setAdvMode('normal'); } }, [isOpen]);
+            const [extraBonus, setExtraBonus] = useState(0);
+            const [selectedExps, setSelectedExps] = useState(new Set());
+
+            useEffect(() => { 
+                if(isOpen) { setResult(null); setAdvMode('normal'); setExtraBonus(0); setSelectedExps(new Set()); } 
+            }, [isOpen]);
+
             if (!isOpen) return null;
+
+            const toggleExp = (idx) => { const newSet = new Set(selectedExps); newSet.has(idx) ? newSet.delete(idx) : newSet.add(idx); setSelectedExps(newSet); };
+
             const roll = () => {
                 const hope = Math.floor(Math.random() * 12) + 1; const fear = Math.floor(Math.random() * 12) + 1;
                 let adv = (advMode !== 'normal') ? Math.floor(Math.random() * 6) + 1 : 0;
-                let total = hope + fear + (parseInt(modifier) || 0) + (advMode === 'adv' ? adv : advMode === 'dis' ? -adv : 0);
-                setResult({ hope, fear, adv, total, isCrit: hope === fear, isHope: hope >= fear });
+                let expBonus = 0; selectedExps.forEach(idx => expBonus += (parseInt(experiences[idx].mod) || 0));
+                let total = hope + fear + (parseInt(modifier) || 0) + (advMode === 'adv' ? adv : advMode === 'dis' ? -adv : 0) + expBonus + extraBonus;
+                const isCrit = hope === fear;
+                setResult({ hope, fear, adv, total, isCrit, isHope: hope >= fear });
+                
+                // Trigger crit pending only if it's an attack roll and is a crit
+                if (onResult) onResult(isCrit && isAttack);
             };
+
             return (
                 <div className="modal-overlay" onClick={onClose}>
-                    <div className="bg-[#18181b] border border-[#3f3f46] w-full max-w-sm rounded-lg p-5 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-[#18181b] border border-[#3f3f46] w-full max-w-sm rounded-lg p-5 text-center shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
                         <h2 className="font-cinzel text-xl text-white mb-4">Tiro {traitName}</h2>
                         {!result ? (
-                            <div className="space-y-6">
+                            <div className="space-y-4">
                                 <div className="toggle-group"><div className={`toggle-btn ${advMode === 'dis' ? 'active-dis' : ''}`} onClick={() => setAdvMode('dis')}>Svant. (-1d6)</div><div className={`toggle-btn ${advMode === 'normal' ? 'active' : ''}`} onClick={() => setAdvMode('normal')}>Normale</div><div className={`toggle-btn ${advMode === 'adv' ? 'active-adv' : ''}`} onClick={() => setAdvMode('adv')}>Vant. (+1d6)</div></div>
-                                <div className="text-gray-400">Modificatore: <b className="text-white text-lg">{modifier >= 0 ? `+${modifier}` : modifier}</b></div>
-                                <button onClick={roll} className="w-full py-3 bg-[#ca8a04] text-black font-bold rounded text-lg uppercase tracking-wide">Lancia</button>
+                                <div className="text-gray-400 text-sm">Bonus Caratteristica: <b className="text-white text-lg">{modifier >= 0 ? `+${modifier}` : modifier}</b></div>
+                                <div className="text-left bg-[#27272a] p-2 rounded"><div className="text-[10px] uppercase text-gray-500 font-bold mb-1">Aggiungi Esperienze</div>{experiences.map((exp, i) => exp.text && (<div key={i} onClick={() => toggleExp(i)} className={`flex justify-between items-center text-xs p-1 rounded cursor-pointer ${selectedExps.has(i) ? 'bg-[#ca8a04] text-black font-bold' : 'text-gray-300 hover:bg-gray-700'}`}><span>{exp.text}</span><span>{exp.mod > 0 ? '+'+exp.mod : exp.mod}</span></div>))}</div>
+                                <div className="flex items-center justify-center gap-4"><span className="text-xs uppercase text-gray-500">Extra Bonus</span><button onClick={() => extraBonus > -20 && setExtraBonus(extraBonus - 1)} className="text-xl px-2 text-gray-400 bg-[#27272a] rounded">-</button><span className="text-lg font-bold w-8">{extraBonus > 0 ? '+'+extraBonus : extraBonus}</span><button onClick={() => extraBonus < 20 && setExtraBonus(extraBonus + 1)} className="text-xl px-2 text-gray-400 bg-[#27272a] rounded">+</button></div>
+                                <button onClick={roll} className="w-full py-3 bg-[#ca8a04] text-black font-bold rounded text-lg uppercase tracking-wide mt-2">Lancia</button>
                             </div>
                         ) : (
                             <div className="space-y-4 animate-fade-in">
@@ -228,6 +227,7 @@
                                 {advMode !== 'normal' && <div className="text-sm text-gray-400">{advMode === 'adv' ? 'Vantaggio (+d6)' : 'Svantaggio (-d6)'}: <span className={`font-bold ${advMode === 'adv' ? 'text-green-500' : 'text-red-500'} ml-1`}>{advMode === 'adv' ? '+' : '-'}{result.adv}</span></div>}
                                 <div className="bg-[#27272a] p-3 rounded-lg border border-[#3f3f46]"><div className="text-[10px] uppercase text-gray-500">Totale</div><div className="text-5xl font-cinzel text-white">{result.total}</div></div>
                                 <div className={`py-2 px-3 rounded font-bold text-sm ${result.isCrit ? 'bg-green-900 text-green-200' : result.isHope ? 'bg-yellow-900/40 text-yellow-200' : 'bg-purple-900/40 text-purple-200'}`}>{result.isCrit ? "SUCCESSO CRITICO" : result.isHope ? "AZIONE CON SPERANZA" : "AZIONE CON PAURA"}</div>
+                                {result.isCrit && (<div className="text-xs text-[#ca8a04] font-bold border border-[#ca8a04] p-2 rounded bg-[#ca8a04]/10">Guadagni 1 Speranza e cancelli 1 Stress!</div>)}
                                 <button onClick={onClose} className="mt-2 text-gray-500 text-sm underline">Chiudi</button>
                             </div>
                         )}
@@ -250,7 +250,7 @@
             );
         };
 
-        const WeaponCard = ({ weapon, onChange, onRollAttack, onRollDamage, currentMod, isEditMode }) => {
+        const WeaponCard = ({ weapon, onChange, onRollAttack, onRollDamage, currentMod, isEditMode, critPending }) => {
             const update = (f, v) => onChange({...weapon, [f]: v});
             const updateRow = (i, f, v) => { const rows = [...weapon.damageRows]; rows[i][f] = v; update('damageRows', rows); };
             const addRow = () => update('damageRows', [...weapon.damageRows, { count: 1, die: "d6", mod: 0, type: "fis" }]);
@@ -270,21 +270,47 @@
                              <button onClick={addRow} className="text-xs text-[#ca8a04] mt-1 font-bold">+ Dado</button>
                         </div>
                     ) : ( <div className="text-sm text-gray-300 mb-4 bg-[#121212] p-2 rounded border border-[#3f3f46]"><span className="text-[10px] uppercase text-gray-500 block">Danni</span>{damageSummary}</div> )}
-                    <div className="grid grid-cols-2 gap-3 mt-2"><button onClick={onRollAttack} className="bg-[#3f3f46] hover:bg-[#52525b] text-white py-3 rounded text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">⚔️ Attacco</button><button onClick={onRollDamage} className="bg-red-900 hover:bg-red-800 text-white py-3 rounded text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">🩸 Danni</button></div>
+                    <div className="grid grid-cols-2 gap-3 mt-2"><button onClick={onRollAttack} className="bg-[#3f3f46] hover:bg-[#52525b] text-white py-3 rounded text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">⚔️ Attacco</button><button onClick={onRollDamage} className={`bg-red-900 hover:bg-red-800 text-white py-3 rounded text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform ${critPending ? 'crit-btn' : ''}`}>{critPending ? 'CRITICO!' : '🩸 Danni'}</button></div>
                 </div>
             );
         };
 
-        const DeckView = ({ deck, onBack, onAddCard, onDeleteCard }) => {
+        const PreparedDeckView = ({ deck, onBack, toFullDeck }) => (
+            <div className="pb-20 max-w-md mx-auto min-h-screen bg-[#121212] flex flex-col">
+                <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center">
+                    <button onClick={onBack} className="text-gray-400 text-sm">← Scheda</button>
+                    <h2 className="font-cinzel text-[#ca8a04]">Carte Preparate</h2>
+                    <div className="w-12"></div>
+                </div>
+                <div className="flex-grow p-4 flex flex-col items-center">
+                    {deck.length === 0 ? <div className="text-gray-500 text-center mt-20"><div>Nessuna carta preparata.</div></div> : (
+                        <div className="deck-scroll w-full">{deck.map((card, i) => (<div key={i} className="card-view flex-shrink-0"><img src={card.img} className="card-img" /><div className="absolute bottom-2 right-4 bg-black/50 px-2 rounded text-xs">{i+1}/{deck.length}</div></div>))}</div>
+                    )}
+                </div>
+                <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]">
+                    <button onClick={toFullDeck} className="w-full py-3 bg-[#3f3f46] text-white font-bold uppercase rounded shadow-lg">Gestisci Mazzo Completo</button>
+                </div>
+            </div>
+        );
+
+        const FullDeckManager = ({ allCards, onBack, onAddCard, onDeleteCard, onToggleActive }) => {
             const fileInput = useRef(null);
             const handleUpload = async (e) => { if (e.target.files[0]) onAddCard(await compressImage(e.target.files[0])); };
             return (
                 <div className="pb-20 max-w-md mx-auto min-h-screen bg-[#121212] flex flex-col">
-                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center"><button onClick={onBack} className="text-gray-400 text-sm">← Scheda</button><h2 className="font-cinzel text-[#ca8a04]">Mazzo Abilità</h2><div className="w-12"></div></div>
+                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center"><button onClick={onBack} className="text-gray-400 text-sm">← Preparate</button><h2 className="font-cinzel text-[#ca8a04]">Mazzo Completo</h2><div className="w-12"></div></div>
                     <div className="flex-grow p-4 flex flex-col items-center">
-                        {deck.length === 0 ? <div className="text-gray-500 text-center mt-20"><div>Nessuna carta.</div></div> : (<div className="deck-scroll w-full">{deck.map((img, i) => (<div key={i} className="card-view flex-shrink-0"><img src={img} className="card-img" /><button onClick={() => { if(confirm('Eliminare?')) onDeleteCard(i); }} className="delete-btn">×</button><div className="absolute bottom-2 right-4 bg-black/50 px-2 rounded text-xs">{i+1}/{deck.length}</div></div>))}</div>)}
+                        {allCards.length === 0 ? <div className="text-gray-500 text-center mt-20"><div>Nessuna carta nel raccoglitore.</div></div> : (
+                            <div className="deck-scroll w-full">{allCards.map((card, i) => (
+                                <div key={card.id} className={`card-view flex-shrink-0 ${card.active ? 'active-card' : 'inactive-card'}`} onClick={() => onToggleActive(card.id)}>
+                                    <img src={card.img} className="card-img" />
+                                    <button onClick={(e) => { e.stopPropagation(); if(confirm('Eliminare carta definitivamente?')) onDeleteCard(card.id); }} className="delete-btn">×</button>
+                                    <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded text-xs font-bold text-white border border-[#3f3f46]">{card.active ? "PREPARATA" : "INATTIVA"}</div>
+                                </div>
+                            ))}</div>
+                        )}
                     </div>
-                    <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]"><input type="file" accept="image/*" ref={fileInput} onChange={handleUpload} className="hidden" /><button onClick={() => fileInput.current.click()} className="w-full py-3 bg-[#ca8a04] text-black font-bold uppercase rounded shadow-lg">+ Aggiungi Carta</button></div>
+                    <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]"><input type="file" accept="image/*" ref={fileInput} onChange={handleUpload} className="hidden" /><button onClick={() => fileInput.current.click()} className="w-full py-3 bg-[#ca8a04] text-black font-bold uppercase rounded shadow-lg">+ Aggiungi Nuova Carta</button></div>
                 </div>
             );
         };
@@ -294,15 +320,25 @@
                 const c = {...data};
                 if(!c.thresholds) c.thresholds = {minor:2, major:3, severe:4};
                 if(!c.experiences || c.experiences.length === 0) c.experiences = Array(5).fill({ text: "", mod: 0 });
-                if(!c.classFeature) c.classFeature = ""; if(!c.deck) c.deck = []; if(!c.playerName) c.playerName = "";
+                if(!c.classFeature) c.classFeature = ""; 
+                if(!c.deck) c.deck = []; // Array of objects {id, img, active}
+                
+                // MIGRATION: Convert old string array to objects if necessary
+                if (c.deck.length > 0 && typeof c.deck[0] === 'string') {
+                    c.deck = c.deck.map((img, idx) => ({ id: Date.now() + idx, img, active: true }));
+                }
+
+                if(!c.playerName) c.playerName = "";
                 if(!c.activeArmor) c.activeArmor = { name: "Armatura Base", baseScore: "+2", baseThresholds: "5 / 10 / 15", feature: "" };
                 if(!c.potions) c.potions = [];
+                if(!c.gold) c.gold = { handfuls: 0, bags: 0, chests: 0 };
                 return c;
             });
-            const [view, setView] = useState('sheet');
-            const [diceState, setDiceState] = useState({ open: false, mod: 0, name: '' });
+            const [view, setView] = useState('sheet'); // 'sheet', 'preparedDeck', 'fullDeck'
+            const [diceState, setDiceState] = useState({ open: false, mod: 0, name: '', isAttack: false });
             const [dmgState, setDmgState] = useState({ open: false, total: 0, detail: '', title: '' });
             const [isEditMode, setIsEditMode] = useState(false);
+            const [critPending, setCritPending] = useState(false);
             const imgInput = useRef(null);
 
             useEffect(() => onSave(char), [char]);
@@ -310,15 +346,11 @@
             const update = (f, v) => setChar(p => ({...p, [f]: v}));
             const updateDeep = (cat, field, val) => setChar(p => ({...p, [cat]: {...p[cat], [field]: val}}));
             const updateTrait = (k, v) => setChar(p => ({...p, traits: {...p.traits, [k]: parseInt(v)||0}}));
-            const updateExp = (idx, newExp) => {
-                const newExps = [...char.experiences];
-                newExps[idx] = newExp;
-                setChar(p => ({...p, experiences: newExps}));
-            };
+            const updateExp = (idx, newExp) => { const newExps = [...char.experiences]; newExps[idx] = newExp; setChar(p => ({...p, experiences: newExps})); };
 
             const handleImgUpload = async (e) => { if(e.target.files[0]) update('charImg', await compressImage(e.target.files[0])); };
 
-            const rollAttack = (w) => setDiceState({ open: true, mod: char.traits[w.trait] || 0, name: `${w.name} (${TRAITS[w.trait]})` });
+            const rollAttack = (w) => setDiceState({ open: true, mod: char.traits[w.trait] || 0, name: `${w.name} (${TRAITS[w.trait]})`, isAttack: true });
             
             const rollDiceGeneric = (count, die, mod, title) => {
                 let total = 0, details = [];
@@ -330,21 +362,56 @@
 
             const rollWeaponDamage = (w) => {
                 let total = 0, details = [];
+                let maxCritDmg = 0;
+
+                if (critPending) {
+                    w.damageRows.forEach(row => {
+                        maxCritDmg += row.count * parseInt(row.die.slice(1));
+                    });
+                    details.push(`CRITICO (Max Dadi: ${maxCritDmg})`);
+                }
+
                 w.damageRows.forEach(row => {
                     let sub = row.mod; let rolls = [];
                     for(let i=0; i<row.count; i++) { const r = Math.floor(Math.random() * parseInt(row.die.slice(1))) + 1; sub += r; rolls.push(r); }
                     total += sub; details.push(`${row.count}${row.die}(${rolls.join('+')})${row.mod!==0 ? (row.mod>0?'+':'')+row.mod : ''}`);
                 });
-                setDmgState({ open: true, total, detail: details.join(' + '), title: 'Danni' });
+                
+                total += maxCritDmg;
+                setDmgState({ open: true, total, detail: details.join(' + '), title: critPending ? 'DANNI CRITICI' : 'Danni' });
+                setCritPending(false); 
             };
 
-            if (view === 'deck') return <DeckView deck={char.deck} onBack={() => setView('sheet')} onAddCard={(img) => setChar(p => ({...p, deck: [...p.deck, img]}))} onDeleteCard={(idx) => setChar(p => ({...p, deck: p.deck.filter((_, i) => i !== idx)}))} />;
+            const onDiceResult = (isCrit) => {
+                if (isCrit) setCritPending(true);
+                else setCritPending(false);
+            };
+
+            // Deck Functions
+            const addCardToFullDeck = (img) => {
+                setChar(p => ({...p, deck: [...p.deck, { id: Date.now(), img, active: true }]}));
+            };
+            const deleteCard = (id) => {
+                setChar(p => ({...p, deck: p.deck.filter(c => c.id !== id)}));
+            };
+            const toggleCardActive = (id) => {
+                setChar(p => ({...p, deck: p.deck.map(c => c.id === id ? { ...c, active: !c.active } : c)}));
+            };
+
+            if (view === 'preparedDeck') {
+                const preparedCards = char.deck.filter(c => c.active);
+                return <PreparedDeckView deck={preparedCards} onBack={() => setView('sheet')} toFullDeck={() => setView('fullDeck')} />;
+            }
+
+            if (view === 'fullDeck') {
+                return <FullDeckManager allCards={char.deck} onBack={() => setView('preparedDeck')} onAddCard={addCardToFullDeck} onDeleteCard={deleteCard} onToggleActive={toggleCardActive} />;
+            }
 
             return (
                 <div className={`pb-20 max-w-md mx-auto ${isEditMode ? 'editing' : 'playing'}`}>
                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center shadow-md">
                         <button onClick={onBack} className="text-gray-400 text-sm">← Esci</button>
-                        <div className="flex gap-2"><button onClick={() => setView('deck')} className="text-[#ca8a04] text-xl p-1" title="Mazzo">🎴</button><button onClick={() => setIsEditMode(!isEditMode)} className={`text-xl p-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-gray-500'}`} title="Modifica">{isEditMode ? "🔓" : "🔒"}</button></div>
+                        <div className="flex gap-2"><button onClick={() => setView('preparedDeck')} className="text-[#ca8a04] text-xl p-1" title="Mazzo">🎴</button><button onClick={() => setIsEditMode(!isEditMode)} className={`text-xl p-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-gray-500'}`} title="Modifica">{isEditMode ? "🔓" : "🔒"}</button></div>
                     </div>
 
                     <div className="p-3 space-y-4">
@@ -354,7 +421,10 @@
                             <img src={char.charImg || "https://placehold.co/250x250/27272a/gray?text=IMG"} className="char-portrait" onClick={()=>imgInput.current.click()} />
                             
                             {/* 2. Hero Name */}
-                            <input value={char.name} onChange={e => update('name', e.target.value)} className={`text-center font-cinzel text-white font-bold leading-none text-2xl w-full bg-transparent focus:outline-none ${!isEditMode ? 'pointer-events-none' : 'border-b border-[#3f3f46]'}`} placeholder="Nome Eroe" />
+                            {isEditMode ? 
+                                <input value={char.name} onChange={e => update('name', e.target.value)} className="font-cinzel text-white font-bold leading-none text-2xl w-full bg-transparent text-center focus:outline-none border-b border-[#3f3f46]" placeholder="Nome Eroe" />
+                                : <h1 className="font-cinzel text-white font-bold leading-none text-2xl">{char.name || "Eroe"}</h1>
+                            }
                             
                             {/* 3. Info Line */}
                             <div className="text-[10px] text-[#ca8a04] uppercase tracking-widest mt-1 font-bold">
@@ -364,6 +434,7 @@
                                         <input value={char.heritage} onChange={e => update('heritage', e.target.value)} className="bg-[#27272a] text-white p-1 rounded" placeholder="Stirpe" />
                                         <input value={char.subclass} onChange={e => update('subclass', e.target.value)} className="bg-[#27272a] text-white p-1 rounded" placeholder="Sottoclasse" />
                                         <input type="number" value={char.level} onChange={e => update('level', e.target.value)} className="bg-[#27272a] text-white p-1 rounded" placeholder="Liv" />
+                                        <input value={char.playerName} onChange={e => update('playerName', e.target.value)} className="bg-[#27272a] text-white p-1 rounded col-span-2" placeholder="Giocatore" />
                                     </div>
                                 : 
                                     `${char.class} - ${char.heritage} ${char.subclass} - Liv. ${char.level}`
@@ -373,31 +444,29 @@
 
                         {/* 4. Characteristics */}
                         <div className="attributes-grid">
-                            {Object.keys(TRAITS).map(k => (<StatBox key={k} label={TRAITS[k]} value={char.traits[k]} skillText={TRAIT_SKILLS[k]} statKey={k} onChange={updateTrait} onClick={() => !isEditMode && setDiceState({ open: true, mod: char.traits[k], name: TRAITS[k] })} isEditMode={isEditMode} />))}
+                            {Object.keys(TRAITS).map(k => (<StatBox key={k} label={TRAITS[k]} value={char.traits[k]} skillText={TRAIT_SKILLS[k]} statKey={k} onChange={updateTrait} onClick={() => !isEditMode && setDiceState({ open: true, mod: char.traits[k], name: TRAITS[k], isAttack: false })} isEditMode={isEditMode} />))}
                         </div>
 
                         {/* 5. Damage Thresholds */}
                         <div className="bg-[#121212] border border-red-900/50 rounded p-2 flex flex-row items-center justify-between text-[10px] text-red-400 gap-1 overflow-x-auto hide-scroll">
-                            <div className="flex flex-row items-center gap-2 flex-shrink-0"><span className="uppercase font-bold whitespace-nowrap">Danno Minore</span>{isEditMode ? <input type="number" value={char.thresholds.minor} onChange={e => updateDeep('thresholds', 'minor', parseInt(e.target.value))} className="w-12 bg-[#27272a] border border-red-900/50 rounded text-center text-white font-cinzel text-sm p-1 focus:outline-none" /> : <span className="text-white font-cinzel text-sm px-2">{char.thresholds.minor}</span>}</div>
-                            <div className="flex flex-row items-center gap-2 flex-shrink-0"><span className="uppercase font-bold whitespace-nowrap">Danno Maggiore</span>{isEditMode ? <input type="number" value={char.thresholds.major} onChange={e => updateDeep('thresholds', 'major', parseInt(e.target.value))} className="w-12 bg-[#27272a] border border-red-900/50 rounded text-center text-white font-cinzel text-sm p-1 focus:outline-none" /> : <span className="text-white font-cinzel text-sm px-2">{char.thresholds.major}</span>}</div>
+                            <div className="flex flex-row items-center gap-2 flex-shrink-0"><span className="uppercase font-bold whitespace-nowrap">Danno Minore</span>{isEditMode ? <input type="number" value={char.thresholds.minor} onChange={e => updateDeep('thresholds', 'minor', e.target.value === '' ? '' : parseInt(e.target.value))} className="w-12 bg-[#27272a] border border-red-900/50 rounded text-center text-white font-cinzel text-sm p-1 focus:outline-none" /> : <span className="text-white font-cinzel text-sm px-2">{char.thresholds.minor}</span>}</div>
+                            <div className="flex flex-row items-center gap-2 flex-shrink-0"><span className="uppercase font-bold whitespace-nowrap">Danno Maggiore</span>{isEditMode ? <input type="number" value={char.thresholds.major} onChange={e => updateDeep('thresholds', 'major', e.target.value === '' ? '' : parseInt(e.target.value))} className="w-12 bg-[#27272a] border border-red-900/50 rounded text-center text-white font-cinzel text-sm p-1 focus:outline-none" /> : <span className="text-white font-cinzel text-sm px-2">{char.thresholds.major}</span>}</div>
                             <div className="flex flex-row items-center gap-2 flex-shrink-0"><span className="uppercase font-bold whitespace-nowrap">Danno Grave</span></div>
                         </div>
 
                         {/* 6. HP, 7. Stress, 8. Hope */}
                         <div className="dh-panel space-y-4">
-                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Punti Ferita</span>{isEditMode ? <input type="number" value={char.hp.max} onChange={e=>updateDeep('hp','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hp.max}</span>}</div><PipTracker total={char.hp.max} current={char.hp.current} onChange={v => updateDeep('hp','current',v)} type="hp" /></div>
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Punti Ferita</span>{isEditMode ? <input type="number" value={char.hp.max} onChange={e=>updateDeep('hp','max',e.target.value === '' ? '' : parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hp.max}</span>}</div><PipTracker total={char.hp.max} current={char.hp.current} onChange={v => updateDeep('hp','current',v)} type="hp" /></div>
                             <hr className="border-[#3f3f46]" />
-                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Stress</span>{isEditMode ? <input type="number" value={char.stress.max} onChange={e=>updateDeep('stress','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.stress.max}</span>}</div><PipTracker total={char.stress.max} current={char.stress.current} onChange={v => updateDeep('stress','current',v)} type="stress" /></div>
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Stress</span>{isEditMode ? <input type="number" value={char.stress.max} onChange={e=>updateDeep('stress','max',e.target.value === '' ? '' : parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.stress.max}</span>}</div><PipTracker total={char.stress.max} current={char.stress.current} onChange={v => updateDeep('stress','current',v)} type="stress" /></div>
                              <hr className="border-[#3f3f46]" />
-                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Speranza</span>{isEditMode ? <input type="number" value={char.hope.max} onChange={e=>updateDeep('hope','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hope.max}</span>}</div><PipTracker total={char.hope.max} current={char.hope.current} onChange={v => updateDeep('hope','current',v)} type="hope" /></div>
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Speranza</span>{isEditMode ? <input type="number" value={char.hope.max} onChange={e=>updateDeep('hope','max',e.target.value === '' ? '' : parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hope.max}</span>}</div><PipTracker total={char.hope.max} current={char.hope.current} onChange={v => updateDeep('hope','current',v)} type="hope" /></div>
                         </div>
 
                         {/* 9. Experiences */}
                         <div className="dh-panel">
                             <h3 className="font-cinzel text-sm text-[#ca8a04] mb-2 uppercase">Esperienze</h3>
-                            {char.experiences.map((exp, i) => (
-                                <ExperienceRow key={i} exp={exp} index={i} onUpdate={(n) => updateExp(i, n)} isEditMode={isEditMode} />
-                            ))}
+                            {char.experiences.map((exp, i) => (<ExperienceRow key={i} exp={exp} index={i} onUpdate={(n) => updateExp(i, n)} isEditMode={isEditMode} />))}
                         </div>
 
                         {/* 10. Evasion */}
@@ -408,7 +477,7 @@
 
                         {/* 11. Armor Slots (Up to 12) */}
                         <div className="dh-panel border-l-4 border-l-blue-600">
-                            <div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Slot Armatura</span>{isEditMode && <input type="number" value={char.armorSlots.max} onChange={e=>updateDeep('armorSlots','max', parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/>}</div>
+                            <div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-gray-400">Slot Armatura</span>{isEditMode && <input type="number" value={char.armorSlots.max} onChange={e=>updateDeep('armorSlots','max', e.target.value === '' ? '' : parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/>}</div>
                             <PipTracker total={Math.min(12, char.armorSlots.max)} current={char.armorSlots.current} onChange={v => updateDeep('armorSlots','current', v)} type="armor" />
                         </div>
 
@@ -418,7 +487,7 @@
                         {/* 13. Weapons & 14. Add Weapon */}
                         <h3 className="font-cinzel text-lg text-white border-b border-[#3f3f46] pb-1">Armi</h3>
                         <div className="space-y-3">
-                            {char.weapons.map((w, i) => (<WeaponCard key={i} weapon={w} currentMod={char.traits[w.trait]} isEditMode={isEditMode} onChange={nw => { if(nw===null) { const ws=[...char.weapons]; ws.splice(i,1); setChar(p=>({...p, weapons:ws})); } else { const ws = [...char.weapons]; ws[i]=nw; setChar(p=>({...p, weapons:ws})); }}} onRollAttack={() => rollAttack(w)} onRollDamage={() => rollWeaponDamage(w)} />))}
+                            {char.weapons.map((w, i) => (<WeaponCard key={i} weapon={w} currentMod={char.traits[w.trait]} isEditMode={isEditMode} critPending={critPending} onChange={nw => { if(nw===null) { const ws=[...char.weapons]; ws.splice(i,1); setChar(p=>({...p, weapons:ws})); } else { const ws = [...char.weapons]; ws[i]=nw; setChar(p=>({...p, weapons:ws})); }}} onRollAttack={() => rollAttack(w)} onRollDamage={() => rollWeaponDamage(w)} />))}
                             {isEditMode && <button onClick={() => setChar(p => ({...p, weapons: [...p.weapons, DEFAULT_CHAR.weapons[0]]}))} className="w-full py-2 border border-dashed border-gray-600 text-gray-500 rounded text-sm">+ Aggiungi Arma</button>}
                         </div>
 
@@ -427,8 +496,18 @@
 
                         {/* 16. Class Privileges */}
                         <div className="dh-panel"><h3 className="font-cinzel text-sm text-[#ca8a04] mb-2 uppercase">Privilegi di Classe</h3>{isEditMode ? <textarea value={char.classFeature} onChange={e => update('classFeature', e.target.value)} className="dh-input h-24 text-sm" placeholder="Descrivi qui..." /> : <div className="text-sm text-gray-300 whitespace-pre-wrap">{char.classFeature || "Nessun privilegio."}</div>}</div>
+
+                        {/* 17. Gold Section */}
+                        <div className="dh-panel border-l-4 border-yellow-600">
+                            <h3 className="font-cinzel text-sm text-yellow-500 mb-2 uppercase">Oro</h3>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center"><span className="text-xs text-gray-400">Forzieri</span><PipTracker total={1} current={char.gold.chests} onChange={v => updateDeep('gold','chests',v)} type="gold-chest" /></div>
+                                <div className="flex justify-between items-center"><span className="text-xs text-gray-400">Borse</span><PipTracker total={10} current={char.gold.bags} onChange={v => updateDeep('gold','bags',v)} type="gold" /></div>
+                                <div className="flex justify-between items-center"><span className="text-xs text-gray-400">Manciate</span><PipTracker total={10} current={char.gold.handfuls} onChange={v => updateDeep('gold','handfuls',v)} type="gold" /></div>
+                            </div>
+                        </div>
                     </div>
-                    <DiceModal isOpen={diceState.open} onClose={() => setDiceState({...diceState, open:false})} modifier={diceState.mod} traitName={diceState.name} />
+                    <DiceModal isOpen={diceState.open} onClose={() => setDiceState({...diceState, open:false})} modifier={diceState.mod} traitName={diceState.name} experiences={char.experiences} onResult={onDiceResult} isAttack={diceState.isAttack} />
                     <ResultModal isOpen={dmgState.open} onClose={() => setDmgState({...dmgState, open:false})} total={dmgState.total} detail={dmgState.detail} title={dmgState.title} />
                 </div>
             );
@@ -442,9 +521,9 @@
         );
 
         const App = () => {
-            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v7') || '[null,null,null,null,null]'));
+            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v9') || '[null,null,null,null,null]'));
             const [active, setActive] = useState(null);
-            useEffect(() => localStorage.setItem('dh_mobile_v7', JSON.stringify(slots)), [slots]);
+            useEffect(() => localStorage.setItem('dh_mobile_v9', JSON.stringify(slots)), [slots]);
             const save = (c) => { const ns = [...slots]; ns[active] = c; setSlots(ns); };
             const create = (i) => { const ns = [...slots]; ns[i] = JSON.parse(JSON.stringify(DEFAULT_CHAR)); setSlots(ns); setActive(i); };
             return active !== null ? <CharacterSheet data={slots[active]} onSave={save} onBack={() => setActive(null)} /> : <SlotManager slots={slots} onSelect={setActive} onCreate={create} onDelete={i => {const ns=[...slots]; ns[i]=null; setSlots(ns);}} />;
