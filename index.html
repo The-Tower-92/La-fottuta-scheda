@@ -48,29 +48,11 @@
 
         .attributes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .deck-scroll { display: flex; overflow-x: auto; gap: 16px; padding: 10px 0; scroll-snap-type: x mandatory; }
-        
-        .card-view { 
-            flex: 0 0 85vw; height: 60vh; background: #000; 
-            border-radius: 12px; overflow: hidden; position: relative; 
-            scroll-snap-align: center; border: 2px solid #3f3f46; 
-            transition: all 0.2s;
-        }
-        .card-view.active-card { border-color: var(--gold); box-shadow: 0 0 15px rgba(202, 138, 4, 0.3); }
-        .card-view.inactive-card { opacity: 0.6; border-color: #3f3f46; }
-        
+        .card-view { flex: 0 0 85vw; height: 60vh; background: #000; border-radius: 12px; overflow: hidden; position: relative; scroll-snap-align: center; border: 2px solid #3f3f46; }
         .card-img { width: 100%; height: 100%; object-fit: contain; }
         .delete-btn { position: absolute; top: 10px; right: 10px; background: rgba(185, 28, 28, 0.9); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; z-index: 50; cursor: pointer; }
         
-        .char-portrait { 
-            width: 200px; height: 200px; 
-            border: 4px solid var(--gold); 
-            object-fit: cover; 
-            margin: 0 auto 16px auto; 
-            display: block; 
-            background: #27272a; 
-            cursor: pointer; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.7); 
-        }
+        .char-portrait { width: 200px; height: 200px; border: 4px solid var(--gold); object-fit: cover; margin: 0 auto 16px auto; display: block; background: #27272a; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.7); }
         
         .editing .dh-input { border-color: #525252; background: #27272a; pointer-events: auto; }
         .playing .dh-input { border-color: transparent; background: transparent; pointer-events: none; }
@@ -101,10 +83,9 @@
             activeArmor: { name: "Armatura Base", baseThresholds: "5 / 10 / 15", baseScore: 1, traits: "Leggera", feature: "" },
             thresholds: { minor: 2, major: 3, severe: 4 },
             hp: { current: 0, max: 6 }, stress: { current: 0, max: 6 }, hope: { current: 2, max: 5 }, armorSlots: { current: 0, max: 6 },
-            experiences: Array(5).fill({ text: "", mod: 0 }),
+            experiences: Array(5).fill({ text: "", mod: 0, cost: 1 }),
             gold: { handfuls: 0, bags: 0, chests: 0 },
-            classFeature: "", 
-            deck: [], // New Structure: [{id, img, active: bool}]
+            classFeature: "", deck: [],
             weapons: [{ name: "", trait: "agility", range: "Mischia", damageRows: [{ count: 1, die: "d8", mod: 0, type: "fis" }], feature: "" }],
             potions: [],
             notes: ""
@@ -123,7 +104,6 @@
             };
         });
 
-        // --- COMPONENTS ---
         const PipTracker = ({ total, current, onChange, type }) => {
             const safeTotal = Math.max(0, parseInt(total) || 0);
             return (
@@ -152,6 +132,16 @@
             return (
                 <div className="flex items-center gap-2 mb-2 bg-[#27272a] p-1 rounded border border-[#3f3f46]">
                     <input value={exp.text} onChange={(e) => update('text', e.target.value)} className={`bg-transparent text-sm text-gray-200 flex-1 px-2 focus:outline-none ${!isEditMode ? 'pointer-events-none' : ''}`} placeholder="Esperienza..." />
+                    
+                    {isEditMode && (
+                        <div className="flex items-center gap-1 border-l border-[#525252] px-2">
+                            <span className="text-[8px] text-gray-500 uppercase">Costo</span>
+                            <select value={exp.cost || 1} onChange={(e) => update('cost', parseInt(e.target.value))} className="bg-transparent text-xs text-[#facc15] font-bold">
+                                {[1,2,3,4,5].map(n => <option key={n} value={n} className="bg-[#1e1e1e]">{n}</option>)}
+                            </select>
+                        </div>
+                    )}
+                    
                     <div className="flex items-center border-l border-[#525252] pl-2">
                         {isEditMode && <div onClick={() => exp.mod > -10 && update('mod', exp.mod - 1)} className="stat-arrow text-xs cursor-pointer px-1">▼</div>}
                         <div className={`text-sm font-bold w-6 text-center ${exp.mod === 0 ? 'text-gray-600' : 'text-[#ca8a04]'}`}>{exp.mod > 0 ? '+'+exp.mod : exp.mod}</div>
@@ -183,7 +173,7 @@
             </div>
         );
 
-        const DiceModal = ({ isOpen, onClose, modifier, traitName, experiences, onResult, isAttack }) => {
+        const DiceModal = ({ isOpen, onClose, modifier, traitName, experiences, onResult, isAttack, currentHope, onApplyResources }) => {
             const [result, setResult] = useState(null);
             const [advMode, setAdvMode] = useState('normal'); 
             const [extraBonus, setExtraBonus] = useState(0);
@@ -200,10 +190,22 @@
             const roll = () => {
                 const hope = Math.floor(Math.random() * 12) + 1; const fear = Math.floor(Math.random() * 12) + 1;
                 let adv = (advMode !== 'normal') ? Math.floor(Math.random() * 6) + 1 : 0;
-                let expBonus = 0; selectedExps.forEach(idx => expBonus += (parseInt(experiences[idx].mod) || 0));
+                
+                let expBonus = 0; 
+                let totalCost = 0;
+                selectedExps.forEach(idx => {
+                    expBonus += (parseInt(experiences[idx].mod) || 0);
+                    totalCost += (parseInt(experiences[idx].cost) || 1);
+                });
+
                 let total = hope + fear + (parseInt(modifier) || 0) + (advMode === 'adv' ? adv : advMode === 'dis' ? -adv : 0) + expBonus + extraBonus;
                 const isCrit = hope === fear;
-                setResult({ hope, fear, adv, total, isCrit, isHope: hope >= fear });
+                const isHopeResult = hope > fear;
+                
+                setResult({ hope, fear, adv, total, isCrit, isHope: isHopeResult });
+                
+                // Automatic Resource Update Callback
+                if (onApplyResources) onApplyResources(totalCost, isCrit, isHopeResult);
                 
                 // Trigger crit pending only if it's an attack roll and is a crit
                 if (onResult) onResult(isCrit && isAttack);
@@ -217,7 +219,20 @@
                             <div className="space-y-4">
                                 <div className="toggle-group"><div className={`toggle-btn ${advMode === 'dis' ? 'active-dis' : ''}`} onClick={() => setAdvMode('dis')}>Svant. (-1d6)</div><div className={`toggle-btn ${advMode === 'normal' ? 'active' : ''}`} onClick={() => setAdvMode('normal')}>Normale</div><div className={`toggle-btn ${advMode === 'adv' ? 'active-adv' : ''}`} onClick={() => setAdvMode('adv')}>Vant. (+1d6)</div></div>
                                 <div className="text-gray-400 text-sm">Bonus Caratteristica: <b className="text-white text-lg">{modifier >= 0 ? `+${modifier}` : modifier}</b></div>
-                                <div className="text-left bg-[#27272a] p-2 rounded"><div className="text-[10px] uppercase text-gray-500 font-bold mb-1">Aggiungi Esperienze</div>{experiences.map((exp, i) => exp.text && (<div key={i} onClick={() => toggleExp(i)} className={`flex justify-between items-center text-xs p-1 rounded cursor-pointer ${selectedExps.has(i) ? 'bg-[#ca8a04] text-black font-bold' : 'text-gray-300 hover:bg-gray-700'}`}><span>{exp.text}</span><span>{exp.mod > 0 ? '+'+exp.mod : exp.mod}</span></div>))}</div>
+                                
+                                <div className="text-left bg-[#27272a] p-2 rounded">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <div className="text-[10px] uppercase text-gray-500 font-bold">Aggiungi Esperienze</div>
+                                        <div className="text-[10px] text-[#facc15]">Speranza: {currentHope}</div>
+                                    </div>
+                                    {experiences.map((exp, i) => exp.text && (
+                                        <div key={i} onClick={() => toggleExp(i)} className={`flex justify-between items-center text-xs p-1 rounded cursor-pointer mb-1 ${selectedExps.has(i) ? 'bg-[#ca8a04] text-black font-bold' : 'text-gray-300 hover:bg-gray-700'}`}>
+                                            <span>{exp.text} ({exp.mod > 0 ? '+'+exp.mod : exp.mod})</span>
+                                            <span className="text-[10px] opacity-80">-{exp.cost || 1} Speranza</span>
+                                        </div>
+                                    ))}
+                                </div>
+
                                 <div className="flex items-center justify-center gap-4"><span className="text-xs uppercase text-gray-500">Extra Bonus</span><button onClick={() => extraBonus > -20 && setExtraBonus(extraBonus - 1)} className="text-xl px-2 text-gray-400 bg-[#27272a] rounded">-</button><span className="text-lg font-bold w-8">{extraBonus > 0 ? '+'+extraBonus : extraBonus}</span><button onClick={() => extraBonus < 20 && setExtraBonus(extraBonus + 1)} className="text-xl px-2 text-gray-400 bg-[#27272a] rounded">+</button></div>
                                 <button onClick={roll} className="w-full py-3 bg-[#ca8a04] text-black font-bold rounded text-lg uppercase tracking-wide mt-2">Lancia</button>
                             </div>
@@ -227,7 +242,10 @@
                                 {advMode !== 'normal' && <div className="text-sm text-gray-400">{advMode === 'adv' ? 'Vantaggio (+d6)' : 'Svantaggio (-d6)'}: <span className={`font-bold ${advMode === 'adv' ? 'text-green-500' : 'text-red-500'} ml-1`}>{advMode === 'adv' ? '+' : '-'}{result.adv}</span></div>}
                                 <div className="bg-[#27272a] p-3 rounded-lg border border-[#3f3f46]"><div className="text-[10px] uppercase text-gray-500">Totale</div><div className="text-5xl font-cinzel text-white">{result.total}</div></div>
                                 <div className={`py-2 px-3 rounded font-bold text-sm ${result.isCrit ? 'bg-green-900 text-green-200' : result.isHope ? 'bg-yellow-900/40 text-yellow-200' : 'bg-purple-900/40 text-purple-200'}`}>{result.isCrit ? "SUCCESSO CRITICO" : result.isHope ? "AZIONE CON SPERANZA" : "AZIONE CON PAURA"}</div>
+                                
                                 {result.isCrit && (<div className="text-xs text-[#ca8a04] font-bold border border-[#ca8a04] p-2 rounded bg-[#ca8a04]/10">Guadagni 1 Speranza e cancelli 1 Stress!</div>)}
+                                {result.isHope && !result.isCrit && (<div className="text-xs text-[#facc15] font-bold border border-[#facc15] p-2 rounded bg-[#facc15]/10">Guadagni 1 Speranza!</div>)}
+
                                 <button onClick={onClose} className="mt-2 text-gray-500 text-sm underline">Chiudi</button>
                             </div>
                         )}
@@ -275,42 +293,16 @@
             );
         };
 
-        const PreparedDeckView = ({ deck, onBack, toFullDeck }) => (
-            <div className="pb-20 max-w-md mx-auto min-h-screen bg-[#121212] flex flex-col">
-                <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center">
-                    <button onClick={onBack} className="text-gray-400 text-sm">← Scheda</button>
-                    <h2 className="font-cinzel text-[#ca8a04]">Carte Preparate</h2>
-                    <div className="w-12"></div>
-                </div>
-                <div className="flex-grow p-4 flex flex-col items-center">
-                    {deck.length === 0 ? <div className="text-gray-500 text-center mt-20"><div>Nessuna carta preparata.</div></div> : (
-                        <div className="deck-scroll w-full">{deck.map((card, i) => (<div key={i} className="card-view flex-shrink-0"><img src={card.img} className="card-img" /><div className="absolute bottom-2 right-4 bg-black/50 px-2 rounded text-xs">{i+1}/{deck.length}</div></div>))}</div>
-                    )}
-                </div>
-                <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]">
-                    <button onClick={toFullDeck} className="w-full py-3 bg-[#3f3f46] text-white font-bold uppercase rounded shadow-lg">Gestisci Mazzo Completo</button>
-                </div>
-            </div>
-        );
-
-        const FullDeckManager = ({ allCards, onBack, onAddCard, onDeleteCard, onToggleActive }) => {
+        const DeckView = ({ deck, onBack, onAddCard, onDeleteCard }) => {
             const fileInput = useRef(null);
             const handleUpload = async (e) => { if (e.target.files[0]) onAddCard(await compressImage(e.target.files[0])); };
             return (
                 <div className="pb-20 max-w-md mx-auto min-h-screen bg-[#121212] flex flex-col">
-                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center"><button onClick={onBack} className="text-gray-400 text-sm">← Preparate</button><h2 className="font-cinzel text-[#ca8a04]">Mazzo Completo</h2><div className="w-12"></div></div>
+                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center"><button onClick={onBack} className="text-gray-400 text-sm">← Scheda</button><h2 className="font-cinzel text-[#ca8a04]">Mazzo Abilità</h2><div className="w-12"></div></div>
                     <div className="flex-grow p-4 flex flex-col items-center">
-                        {allCards.length === 0 ? <div className="text-gray-500 text-center mt-20"><div>Nessuna carta nel raccoglitore.</div></div> : (
-                            <div className="deck-scroll w-full">{allCards.map((card, i) => (
-                                <div key={card.id} className={`card-view flex-shrink-0 ${card.active ? 'active-card' : 'inactive-card'}`} onClick={() => onToggleActive(card.id)}>
-                                    <img src={card.img} className="card-img" />
-                                    <button onClick={(e) => { e.stopPropagation(); if(confirm('Eliminare carta definitivamente?')) onDeleteCard(card.id); }} className="delete-btn">×</button>
-                                    <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded text-xs font-bold text-white border border-[#3f3f46]">{card.active ? "PREPARATA" : "INATTIVA"}</div>
-                                </div>
-                            ))}</div>
-                        )}
+                        {deck.length === 0 ? <div className="text-gray-500 text-center mt-20"><div>Nessuna carta caricata.</div></div> : (<div className="deck-scroll w-full">{deck.map((img, i) => (<div key={i} className="card-view flex-shrink-0"><img src={img} className="card-img" /><button onClick={() => { if(confirm('Eliminare?')) onDeleteCard(i); }} className="delete-btn">×</button><div className="absolute bottom-2 right-4 bg-black/50 px-2 rounded text-xs">{i+1}/{deck.length}</div></div>))}</div>)}
                     </div>
-                    <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]"><input type="file" accept="image/*" ref={fileInput} onChange={handleUpload} className="hidden" /><button onClick={() => fileInput.current.click()} className="w-full py-3 bg-[#ca8a04] text-black font-bold uppercase rounded shadow-lg">+ Aggiungi Nuova Carta</button></div>
+                    <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]"><input type="file" accept="image/*" ref={fileInput} onChange={handleUpload} className="hidden" /><button onClick={() => fileInput.current.click()} className="w-full py-3 bg-[#ca8a04] text-black font-bold uppercase rounded shadow-lg">+ Aggiungi Carta (Galleria)</button></div>
                 </div>
             );
         };
@@ -319,22 +311,17 @@
             const [char, setChar] = useState(() => {
                 const c = {...data};
                 if(!c.thresholds) c.thresholds = {minor:2, major:3, severe:4};
-                if(!c.experiences || c.experiences.length === 0) c.experiences = Array(5).fill({ text: "", mod: 0 });
-                if(!c.classFeature) c.classFeature = ""; 
-                if(!c.deck) c.deck = []; // Array of objects {id, img, active}
+                if(!c.experiences || c.experiences.length === 0) c.experiences = Array(5).fill({ text: "", mod: 0, cost: 1 });
+                // Check if old exp structure exists, ensure cost field
+                c.experiences = c.experiences.map(e => e.cost ? e : {...e, cost: 1});
                 
-                // MIGRATION: Convert old string array to objects if necessary
-                if (c.deck.length > 0 && typeof c.deck[0] === 'string') {
-                    c.deck = c.deck.map((img, idx) => ({ id: Date.now() + idx, img, active: true }));
-                }
-
-                if(!c.playerName) c.playerName = "";
+                if(!c.classFeature) c.classFeature = ""; if(!c.deck) c.deck = []; if(!c.playerName) c.playerName = "";
                 if(!c.activeArmor) c.activeArmor = { name: "Armatura Base", baseScore: "+2", baseThresholds: "5 / 10 / 15", feature: "" };
                 if(!c.potions) c.potions = [];
                 if(!c.gold) c.gold = { handfuls: 0, bags: 0, chests: 0 };
                 return c;
             });
-            const [view, setView] = useState('sheet'); // 'sheet', 'preparedDeck', 'fullDeck'
+            const [view, setView] = useState('sheet');
             const [diceState, setDiceState] = useState({ open: false, mod: 0, name: '', isAttack: false });
             const [dmgState, setDmgState] = useState({ open: false, total: 0, detail: '', title: '' });
             const [isEditMode, setIsEditMode] = useState(false);
@@ -382,36 +369,44 @@
                 setCritPending(false); 
             };
 
-            const onDiceResult = (isCrit) => {
-                if (isCrit) setCritPending(true);
-                else setCritPending(false);
+            const onDiceResult = (isCritAttack) => {
+                // If it's a critical attack, set pending state
+                if (isCritAttack) setCritPending(true);
+                else if (diceState.isAttack) setCritPending(false); // Only reset if it was an attack roll
             };
 
-            // Deck Functions
-            const addCardToFullDeck = (img) => {
-                setChar(p => ({...p, deck: [...p.deck, { id: Date.now(), img, active: true }]}));
-            };
-            const deleteCard = (id) => {
-                setChar(p => ({...p, deck: p.deck.filter(c => c.id !== id)}));
-            };
-            const toggleCardActive = (id) => {
-                setChar(p => ({...p, deck: p.deck.map(c => c.id === id ? { ...c, active: !c.active } : c)}));
+            const applyResources = (cost, isCrit, isHopeResult) => {
+                setChar(prev => {
+                    let newHope = prev.hope.current - cost;
+                    let newStress = prev.stress.current;
+
+                    if (isCrit) {
+                        newHope += 1;
+                        newStress -= 1;
+                    } else if (isHopeResult) {
+                        newHope += 1;
+                    }
+
+                    // Clamping
+                    if (newHope < 0) newHope = 0;
+                    if (newHope > prev.hope.max) newHope = prev.hope.max;
+                    if (newStress < 0) newStress = 0;
+
+                    return {
+                        ...prev,
+                        hope: { ...prev.hope, current: newHope },
+                        stress: { ...prev.stress, current: newStress }
+                    };
+                });
             };
 
-            if (view === 'preparedDeck') {
-                const preparedCards = char.deck.filter(c => c.active);
-                return <PreparedDeckView deck={preparedCards} onBack={() => setView('sheet')} toFullDeck={() => setView('fullDeck')} />;
-            }
-
-            if (view === 'fullDeck') {
-                return <FullDeckManager allCards={char.deck} onBack={() => setView('preparedDeck')} onAddCard={addCardToFullDeck} onDeleteCard={deleteCard} onToggleActive={toggleCardActive} />;
-            }
+            if (view === 'deck') return <DeckView deck={char.deck} onBack={() => setView('sheet')} onAddCard={(img) => setChar(p => ({...p, deck: [...p.deck, img]}))} onDeleteCard={(idx) => setChar(p => ({...p, deck: p.deck.filter((_, i) => i !== idx)}))} />;
 
             return (
                 <div className={`pb-20 max-w-md mx-auto ${isEditMode ? 'editing' : 'playing'}`}>
                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center shadow-md">
                         <button onClick={onBack} className="text-gray-400 text-sm">← Esci</button>
-                        <div className="flex gap-2"><button onClick={() => setView('preparedDeck')} className="text-[#ca8a04] text-xl p-1" title="Mazzo">🎴</button><button onClick={() => setIsEditMode(!isEditMode)} className={`text-xl p-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-gray-500'}`} title="Modifica">{isEditMode ? "🔓" : "🔒"}</button></div>
+                        <div className="flex gap-2"><button onClick={() => setView('deck')} className="text-[#ca8a04] text-xl p-1" title="Mazzo">🎴</button><button onClick={() => setIsEditMode(!isEditMode)} className={`text-xl p-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-gray-500'}`} title="Modifica">{isEditMode ? "🔓" : "🔒"}</button></div>
                     </div>
 
                     <div className="p-3 space-y-4">
@@ -507,7 +502,17 @@
                             </div>
                         </div>
                     </div>
-                    <DiceModal isOpen={diceState.open} onClose={() => setDiceState({...diceState, open:false})} modifier={diceState.mod} traitName={diceState.name} experiences={char.experiences} onResult={onDiceResult} isAttack={diceState.isAttack} />
+                    <DiceModal 
+                        isOpen={diceState.open} 
+                        onClose={() => setDiceState({...diceState, open:false})} 
+                        modifier={diceState.mod} 
+                        traitName={diceState.name} 
+                        experiences={char.experiences} 
+                        onResult={onDiceResult} 
+                        isAttack={diceState.isAttack} 
+                        currentHope={char.hope.current}
+                        onApplyResources={applyResources}
+                    />
                     <ResultModal isOpen={dmgState.open} onClose={() => setDmgState({...dmgState, open:false})} total={dmgState.total} detail={dmgState.detail} title={dmgState.title} />
                 </div>
             );
@@ -521,9 +526,9 @@
         );
 
         const App = () => {
-            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v9') || '[null,null,null,null,null]'));
+            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v10') || '[null,null,null,null,null]'));
             const [active, setActive] = useState(null);
-            useEffect(() => localStorage.setItem('dh_mobile_v9', JSON.stringify(slots)), [slots]);
+            useEffect(() => localStorage.setItem('dh_mobile_v10', JSON.stringify(slots)), [slots]);
             const save = (c) => { const ns = [...slots]; ns[active] = c; setSlots(ns); };
             const create = (i) => { const ns = [...slots]; ns[i] = JSON.parse(JSON.stringify(DEFAULT_CHAR)); setSlots(ns); setActive(i); };
             return active !== null ? <CharacterSheet data={slots[active]} onSave={save} onBack={() => setActive(null)} /> : <SlotManager slots={slots} onSelect={setActive} onCreate={create} onDelete={i => {const ns=[...slots]; ns[i]=null; setSlots(ns);}} />;
