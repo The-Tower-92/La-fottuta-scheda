@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Daggerheart Mobile V0.5</title>
+    <title>Daggerheart Mobile</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -48,7 +48,16 @@
 
         .attributes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .deck-scroll { display: flex; overflow-x: auto; gap: 16px; padding: 10px 0; scroll-snap-type: x mandatory; }
-        .card-view { flex: 0 0 85vw; height: 60vh; background: #000; border-radius: 12px; overflow: hidden; position: relative; scroll-snap-align: center; border: 2px solid #3f3f46; }
+        
+        .card-view { 
+            flex: 0 0 85vw; height: 60vh; background: #000; 
+            border-radius: 12px; overflow: hidden; position: relative; 
+            scroll-snap-align: center; border: 2px solid #3f3f46; 
+            transition: all 0.2s;
+        }
+        .card-view.active-card { border-color: var(--gold); box-shadow: 0 0 15px rgba(202, 138, 4, 0.4); opacity: 1; }
+        .card-view.inactive-card { opacity: 0.5; border-color: #525252; }
+        
         .card-img { width: 100%; height: 100%; object-fit: contain; }
         .delete-btn { position: absolute; top: 10px; right: 10px; background: rgba(185, 28, 28, 0.9); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; z-index: 50; cursor: pointer; }
         
@@ -71,7 +80,6 @@
         @keyframes pulse-gold { 0% { box-shadow: 0 0 0 0 rgba(202, 138, 4, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(202, 138, 4, 0); } 100% { box-shadow: 0 0 0 0 rgba(202, 138, 4, 0); } }
         .crit-btn { animation: pulse-gold 2s infinite; background-color: #ca8a04 !important; color: black !important; border: 1px solid white; }
         
-        /* Level Up Badge */
         .level-badge {
             background: linear-gradient(135deg, #ca8a04 0%, #a16207 100%);
             color: black; font-weight: bold; padding: 4px 12px; border-radius: 20px;
@@ -94,7 +102,8 @@
         };
         const DICE = ["d4", "d6", "d8", "d10", "d12", "d20"];
         const CLASSES_LIST = ["Bardo", "Druido", "Guardiano", "Ranger", "Ladro", "Serafino", "Stregone", "Guerriero", "Mago"];
-        
+        const CARD_EFFECTS = ["Nessun Effetto", "Ribbet"];
+
         const DEFAULT_CHAR = {
             name: "Eroe", playerName: "", 
             classes: [{ name: "Bardo", subclass: "", level: 1 }], 
@@ -106,7 +115,8 @@
             hp: { current: 0, max: 6 }, stress: { current: 0, max: 6 }, hope: { current: 2, max: 5 }, armorSlots: { current: 0, max: 6 },
             experiences: Array(5).fill({ text: "", mod: 0 }),
             gold: { handfuls: 0, bags: 0, chests: 0 },
-            classFeature: "", deck: [],
+            classFeature: "", 
+            deck: [], // {id, img, active, effect}
             weapons: [{ name: "", trait: "agility", range: "Mischia", damageRows: [{ count: 1, die: "d8", mod: 0, type: "fis" }], feature: "" }],
             potions: [],
             notes: ""
@@ -216,13 +226,9 @@
                 let expBonus = 0; selectedExps.forEach(idx => expBonus += (parseInt(experiences[idx].mod) || 0));
                 let total = hope + fear + (parseInt(modifier) || 0) + (advMode === 'adv' ? adv : advMode === 'dis' ? -adv : 0) + expBonus + extraBonus;
                 const isCrit = hope === fear;
-                const isHopeMove = hope > fear;
-                
-                setResult({ hope, fear, adv, total, isCrit, isHopeMove });
-                if (onRollComplete) onRollComplete({ isCrit: isCrit, isHopeMove: isHopeMove, isAttack: isAttack, cost: totalExpCost });
+                setResult({ hope, fear, adv, total, isCrit, isHopeMove: hope > fear });
+                if (onResult) onResult({ isCrit: isCrit, isHopeMove: hope > fear, isAttack: isAttack, cost: totalExpCost });
             };
-
-            const onRollComplete = onResult;
 
             return (
                 <div className="modal-overlay" onClick={onClose}>
@@ -275,15 +281,33 @@
             );
         };
 
-        const ResultModal = ({ isOpen, onClose, total, detail, title }) => {
+        const ResultModal = ({ isOpen, onClose, total, detail, title, cost }) => {
             if (!isOpen) return null;
             return (
                  <div className="modal-overlay" onClick={onClose}>
                     <div className="bg-[#18181b] border border-red-900 w-full max-w-sm rounded-lg p-5 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
                         <h2 className="font-cinzel text-xl text-white mb-1">{title}</h2>
                         <div className="text-6xl font-cinzel text-white my-4">{total}</div>
-                        <div className="text-xs text-gray-400 mb-6 font-mono">{detail}</div>
+                        <div className="text-xs text-gray-400 mb-4 font-mono">{detail}</div>
+                        {cost && (<div className="mb-4 p-2 bg-red-900/20 border border-red-900/50 rounded"><span className="text-[10px] text-red-400 font-bold uppercase tracking-wider block">Costo Effetto</span><div className="text-sm text-white font-bold">{cost}</div></div>)}
                         <button onClick={onClose} className="w-full py-2 bg-gray-800 rounded text-gray-300">Chiudi</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const CardEffectModal = ({ isOpen, onClose, onSelect }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-[#3f3f46] rounded-lg p-4 w-64 text-center shadow-xl" onClick={e => e.stopPropagation()}>
+                        <h3 className="font-cinzel text-lg text-white mb-3">Seleziona Effetto</h3>
+                        {CARD_EFFECTS.map(effect => (
+                            <button key={effect} onClick={() => onSelect(effect)} className="w-full py-2 mb-2 bg-[#27272a] hover:bg-[#3f3f46] text-sm text-white rounded border border-[#525252]">
+                                {effect}
+                            </button>
+                        ))}
+                        <button onClick={onClose} className="mt-2 text-xs text-gray-500 underline">Annulla</button>
                     </div>
                 </div>
             );
@@ -314,16 +338,92 @@
             );
         };
 
-        const DeckView = ({ deck, onBack, onAddCard, onDeleteCard }) => {
+        // --- DECK MANAGEMENT VIEWS ---
+        
+        const ActiveDeckView = ({ deck, onBack, onManage, onUseCardEffect, dmgResult, canUseEffect }) => (
+            <div className="pb-20 max-w-md mx-auto min-h-screen bg-[#121212] flex flex-col">
+                <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center">
+                    <button onClick={onBack} className="text-gray-400 text-sm">← Scheda</button>
+                    <h2 className="font-cinzel text-[#ca8a04]">Carte Preparate</h2>
+                    <div className="w-12"></div>
+                </div>
+                <div className="flex-grow p-4 flex flex-col items-center justify-center">
+                    {deck.length === 0 ? (
+                        <div className="text-gray-500 text-center">
+                            <div>Nessuna carta preparata.</div>
+                            <div className="text-xs mt-2">Vai a "Gestisci Mazzo" per attivare le carte.</div>
+                        </div>
+                    ) : (
+                        <div className="deck-scroll w-full snap-x">
+                            {deck.map((card, i) => (
+                                <div key={card.id} className="card-view flex-shrink-0 snap-center relative">
+                                    {card.effect && card.effect !== "Nessun Effetto" && (
+                                        <button 
+                                            onClick={() => onUseCardEffect(card.effect)} 
+                                            disabled={!canUseEffect(card.effect)}
+                                            className={`absolute top-2 right-2 text-white text-[10px] font-bold px-3 py-1 rounded-full border border-purple-500 shadow-lg z-10 ${canUseEffect(card.effect) ? 'bg-purple-900/90' : 'bg-gray-600 opacity-50 cursor-not-allowed'}`}
+                                        >
+                                            USA EFFETTO
+                                        </button>
+                                    )}
+                                    <img src={card.img} className="card-img" />
+                                    <div className="absolute bottom-2 right-4 bg-black/50 px-2 rounded text-xs text-white">{i+1}/{deck.length}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]">
+                    <button onClick={onManage} className="w-full py-3 bg-[#3f3f46] hover:bg-[#525252] text-white font-bold uppercase rounded shadow-lg">Gestisci Mazzo Completo</button>
+                </div>
+                {/* Result Modal Injected */}
+                <ResultModal isOpen={dmgResult.open} onClose={dmgResult.onClose} total={dmgResult.total} detail={dmgResult.detail} title={dmgResult.title} cost={dmgResult.cost} />
+            </div>
+        );
+
+        const FullDeckView = ({ allCards, onBack, onAddCard, onDeleteCard, onToggleActive, onEditEffect }) => {
             const fileInput = useRef(null);
-            const handleUpload = async (e) => { if (e.target.files[0]) onAddCard(await compressImage(e.target.files[0])); };
+            const handleUpload = async (e) => { 
+                if (e.target.files && e.target.files[0]) {
+                    onAddCard(await compressImage(e.target.files[0])); 
+                }
+            };
             return (
                 <div className="pb-20 max-w-md mx-auto min-h-screen bg-[#121212] flex flex-col">
-                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center"><button onClick={onBack} className="text-gray-400 text-sm">← Scheda</button><h2 className="font-cinzel text-[#ca8a04]">Mazzo Abilità</h2><div className="w-12"></div></div>
-                    <div className="flex-grow p-4 flex flex-col items-center">
-                        {deck.length === 0 ? <div className="text-gray-500 text-center mt-20"><div>Nessuna carta caricata.</div></div> : (<div className="deck-scroll w-full">{deck.map((img, i) => (<div key={i} className="card-view flex-shrink-0"><img src={img} className="card-img" /><button onClick={() => { if(confirm('Eliminare?')) onDeleteCard(i); }} className="delete-btn">×</button><div className="absolute bottom-2 right-4 bg-black/50 px-2 rounded text-xs">{i+1}/{deck.length}</div></div>))}</div>)}
+                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center">
+                        <button onClick={onBack} className="text-gray-400 text-sm">← Preparate</button>
+                        <h2 className="font-cinzel text-[#ca8a04]">Mazzo Completo</h2>
+                        <div className="w-12"></div>
                     </div>
-                    <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]"><input type="file" accept="image/*" ref={fileInput} onChange={handleUpload} className="hidden" /><button onClick={() => fileInput.current.click()} className="w-full py-3 bg-[#ca8a04] text-black font-bold uppercase rounded shadow-lg">+ Aggiungi Carta (Galleria)</button></div>
+                    <div className="flex-grow p-4 flex flex-col items-center justify-center">
+                        {allCards.length === 0 ? <div className="text-gray-500 text-center"><div>Nessuna carta nel raccoglitore.</div></div> : (
+                            <div className="deck-scroll w-full snap-x">
+                                {allCards.map((card) => (
+                                    <div 
+                                        key={card.id} 
+                                        className={`card-view flex-shrink-0 snap-center ${card.active ? 'active-card' : 'inactive-card'}`}
+                                        onClick={() => onToggleActive(card.id)}
+                                    >
+                                        <img src={card.img} className="card-img" />
+                                        <button onClick={(e) => { e.stopPropagation(); if(confirm('Eliminare definitivamente?')) onDeleteCard(card.id); }} className="delete-btn">×</button>
+                                        <div className={`absolute top-2 left-2 px-2 py-1 rounded text-xs font-bold border ${card.active ? 'bg-[#ca8a04] text-black border-[#ca8a04]' : 'bg-black/70 text-gray-400 border-gray-600'}`}>
+                                            {card.active ? "ATTIVA" : "INATTIVA"}
+                                        </div>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onEditEffect(card.id); }}
+                                            className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-[10px] px-3 py-2 rounded border border-gray-500"
+                                        >
+                                            Modifica effetti carta
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-4 bg-[#1e1e1e] border-t border-[#3f3f46]">
+                        <input type="file" accept="image/*" ref={fileInput} onChange={handleUpload} className="hidden" />
+                        <button onClick={() => fileInput.current.click()} className="w-full py-3 bg-[#ca8a04] text-black font-bold uppercase rounded shadow-lg">+ Aggiungi Nuova Carta</button>
+                    </div>
                 </div>
             );
         };
@@ -331,65 +431,42 @@
         const CharacterSheet = ({ data, onSave, onBack }) => {
             const [char, setChar] = useState(() => {
                 const c = {...data};
-                // Migration: Convert single class to array if needed
-                if (!c.classes) c.classes = [{ name: c.class || "Bardo", subclass: c.subclass || "", level: parseInt(c.level) || 1 }];
-                // Ensure heritage is preserved
-                if (!c.heritage) c.heritage = "";
-                
                 if(!c.thresholds) c.thresholds = {minor:2, major:3, severe:4};
                 if(!c.experiences || c.experiences.length === 0) c.experiences = Array(5).fill({ text: "", mod: 0, cost: 1 });
                 c.experiences = c.experiences.map(e => ({...e, cost: e.cost || 1}));
-                if(!c.classFeature) c.classFeature = ""; if(!c.deck) c.deck = []; if(!c.playerName) c.playerName = "";
+                if (!c.deck) c.deck = [];
+                if (c.deck.length > 0 && typeof c.deck[0] === 'string') {
+                    c.deck = c.deck.map((img, idx) => ({ id: Date.now() + idx, img, active: true, effect: '' }));
+                }
+                if (!c.classes) c.classes = [{ name: c.class || "Bardo", subclass: c.subclass || "", level: parseInt(c.level) || 1 }];
+                if (!c.heritage) c.heritage = "";
+                if(!c.classFeature) c.classFeature = ""; if(!c.playerName) c.playerName = "";
                 if(!c.activeArmor) c.activeArmor = { name: "Armatura Base", baseScore: "+2", baseThresholds: "5 / 10 / 15", feature: "" };
                 if(!c.potions) c.potions = [];
                 if(!c.gold) c.gold = { handfuls: 0, bags: 0, chests: 0 };
                 return c;
             });
+            
             const [view, setView] = useState('sheet');
             const [diceState, setDiceState] = useState({ open: false, mod: 0, name: '', isAttack: false });
-            const [dmgState, setDmgState] = useState({ open: false, total: 0, detail: '', title: '' });
+            const [dmgState, setDmgState] = useState({ open: false, total: 0, detail: '', title: '', cost: null }); // Added cost
             const [isEditMode, setIsEditMode] = useState(false);
             const [critPending, setCritPending] = useState(false);
             const [levelUpModalOpen, setLevelUpModalOpen] = useState(false);
+            const [effectModal, setEffectModal] = useState({ open: false, cardId: null });
             const imgInput = useRef(null);
 
             useEffect(() => onSave(char), [char]);
 
-            // Total Level Calc
             const totalLevel = char.classes.reduce((sum, c) => sum + (parseInt(c.level) || 0), 0);
-
             const update = (f, v) => setChar(p => ({...p, [f]: v}));
             const updateDeep = (cat, field, val) => setChar(p => ({...p, [cat]: {...p[cat], [field]: val}}));
             const updateTrait = (k, v) => setChar(p => ({...p, traits: {...p.traits, [k]: parseInt(v)||0}}));
             const updateExp = (idx, newExp) => { const newExps = [...char.experiences]; newExps[idx] = newExp; setChar(p => ({...p, experiences: newExps})); };
-
-            // Class Management
-            const updateClass = (idx, field, val) => {
-                const newClasses = [...char.classes];
-                newClasses[idx] = { ...newClasses[idx], [field]: val };
-                setChar(p => ({...p, classes: newClasses}));
-            };
-            const addClass = () => {
-                if (char.classes.length < 2) {
-                    setChar(p => ({...p, classes: [...p.classes, { name: "Bardo", subclass: "", level: 1 }]}));
-                }
-            };
-            const handleLevelUpClick = () => {
-                if (!isEditMode && totalLevel < 20) {
-                    if (char.classes.length === 1) {
-                        // Direct level up
-                        updateClass(0, 'level', char.classes[0].level + 1);
-                    } else {
-                        // Open modal
-                        setLevelUpModalOpen(true);
-                    }
-                }
-            };
-            const performLevelUp = (classIndex) => {
-                updateClass(classIndex, 'level', char.classes[classIndex].level + 1);
-                setLevelUpModalOpen(false);
-            };
-
+            const updateClass = (idx, field, val) => { const newClasses = [...char.classes]; newClasses[idx] = { ...newClasses[idx], [field]: val }; setChar(p => ({...p, classes: newClasses})); };
+            const addClass = () => { if (char.classes.length < 2) setChar(p => ({...p, classes: [...p.classes, { name: "Bardo", subclass: "", level: 1 }]})); };
+            const handleLevelUpClick = () => { if (!isEditMode && totalLevel < 20) { if (char.classes.length === 1) updateClass(0, 'level', char.classes[0].level + 1); else setLevelUpModalOpen(true); } };
+            const performLevelUp = (classIndex) => { updateClass(classIndex, 'level', char.classes[classIndex].level + 1); setLevelUpModalOpen(false); };
             const handleImgUpload = async (e) => { if(e.target.files[0]) update('charImg', await compressImage(e.target.files[0])); };
 
             const rollAttack = (w) => setDiceState({ open: true, mod: char.traits[w.trait] || 0, name: `${w.name} (${TRAITS[w.trait]})`, isAttack: true });
@@ -399,55 +476,107 @@
                 let sub = mod; let rolls = [];
                 for(let i=0; i<count; i++) { const r = Math.floor(Math.random() * parseInt(die.slice(1))) + 1; sub += r; rolls.push(r); }
                 total += sub; details.push(`${count}${die}(${rolls.join('+')})${mod!==0 ? (mod>0?'+':'')+mod : ''}`);
-                setDmgState({ open: true, total, detail: details.join(' '), title });
+                setDmgState({ open: true, total, detail: details.join(' '), title, cost: null });
             };
 
             const rollWeaponDamage = (w) => {
                 let total = 0, details = [];
                 let maxCritDmg = 0;
-
-                if (critPending) {
-                    w.damageRows.forEach(row => {
-                        maxCritDmg += row.count * parseInt(row.die.slice(1));
-                    });
-                    details.push(`CRITICO (Max Dadi: ${maxCritDmg})`);
-                }
-
-                w.damageRows.forEach(row => {
-                    let sub = row.mod; let rolls = [];
-                    for(let i=0; i<row.count; i++) { const r = Math.floor(Math.random() * parseInt(row.die.slice(1))) + 1; sub += r; rolls.push(r); }
-                    total += sub; details.push(`${row.count}${row.die}(${rolls.join('+')})${row.mod!==0 ? (row.mod>0?'+':'')+row.mod : ''}`);
-                });
-                
+                if (critPending) { w.damageRows.forEach(row => { maxCritDmg += row.count * parseInt(row.die.slice(1)); }); details.push(`CRITICO (Max Dadi: ${maxCritDmg})`); }
+                w.damageRows.forEach(row => { let sub = row.mod; let rolls = []; for(let i=0; i<row.count; i++) { const r = Math.floor(Math.random() * parseInt(row.die.slice(1))) + 1; sub += r; rolls.push(r); } total += sub; details.push(`${row.count}${row.die}(${rolls.join('+')})${row.mod!==0 ? (row.mod>0?'+':'')+row.mod : ''}`); });
                 total += maxCritDmg;
-                setDmgState({ open: true, total, detail: details.join(' + '), title: critPending ? 'DANNI CRITICI' : 'Danni' });
+                setDmgState({ open: true, total, detail: details.join(' + '), title: critPending ? 'DANNI CRITICI' : 'Danni', cost: null });
                 setCritPending(false); 
             };
 
             const onDiceResult = (data) => {
                 setChar(prev => {
-                    let newHope = prev.hope.current;
-                    let newStress = prev.stress.current;
+                    let newHope = prev.hope.current; let newStress = prev.stress.current;
                     if (data.cost > 0) newHope = Math.max(0, newHope - data.cost);
-                    if (data.isCrit) {
-                        if (newHope < prev.hope.max) newHope += 1;
-                        if (newStress > 0) newStress -= 1;
-                    } else if (data.isHopeMove) {
-                        if (newHope < prev.hope.max) newHope += 1;
-                    }
+                    if (data.isCrit) { if (newHope < prev.hope.max) newHope += 1; if (newStress > 0) newStress -= 1; } 
+                    else if (data.isHopeMove) { if (newHope < prev.hope.max) newHope += 1; }
                     return { ...prev, hope: { ...prev.hope, current: newHope }, stress: { ...prev.stress, current: newStress } };
                 });
-                if (data.isCrit && data.isAttack) setCritPending(true);
-                else setCritPending(false);
+                if (data.isCrit && data.isAttack) setCritPending(true); else setCritPending(false);
             };
 
-            if (view === 'deck') return <DeckView deck={char.deck} onBack={() => setView('sheet')} onAddCard={(img) => setChar(p => ({...p, deck: [...p.deck, img]}))} onDeleteCard={(idx) => setChar(p => ({...p, deck: p.deck.filter((_, i) => i !== idx)}))} />;
+            // Deck Functions
+            const addCardToFull = (img) => setChar(p => ({...p, deck: [...p.deck, { id: Date.now(), img, active: true, effect: '' }]}));
+            const deleteCard = (id) => setChar(p => ({...p, deck: p.deck.filter(c => c.id !== id)}));
+            const toggleCardActive = (id) => setChar(p => ({...p, deck: p.deck.map(c => c.id === id ? { ...c, active: !c.active } : c)}));
+            const setCardEffect = (effect) => {
+                setChar(p => ({...p, deck: p.deck.map(c => c.id === effectModal.cardId ? { ...c, effect } : c)}));
+                setEffectModal({ open: false, cardId: null });
+            };
 
+            const canUseEffect = (effect) => {
+                if (effect === "Ribbet") {
+                    return char.stress.current < char.stress.max;
+                }
+                return false;
+            };
+
+            const executeCardEffect = (effectName) => {
+                if (effectName === "Ribbet") {
+                    const prof = char.proficiency || 1;
+                    const r = Math.floor(Math.random() * 12) + 1;
+                    const total = r + prof;
+                    
+                    setChar(prev => ({
+                        ...prev,
+                        stress: { ...prev.stress, current: Math.min(prev.stress.max, prev.stress.current + 1) }
+                    }));
+
+                    setDmgState({
+                        open: true,
+                        total: total,
+                        detail: `1d12(${r}) + Competenza(${prof})`,
+                        title: "Effetto Ribbet (Danni Fisici)",
+                        cost: "+1 Stress"
+                    });
+                }
+            };
+
+            // Shared dmg state object for passing to ActiveDeckView
+            const dmgResultProps = {
+                open: dmgState.open,
+                total: dmgState.total,
+                detail: dmgState.detail,
+                title: dmgState.title,
+                cost: dmgState.cost,
+                onClose: () => setDmgState({...dmgState, open:false})
+            };
+
+            if (view === 'activeDeck') {
+                const activeCards = char.deck.filter(c => c.active);
+                return <ActiveDeckView deck={activeCards} onBack={() => setView('sheet')} onManage={() => setView('fullDeck')} onUseCardEffect={executeCardEffect} dmgResult={dmgResultProps} canUseEffect={canUseEffect} />;
+            }
+
+            if (view === 'fullDeck') {
+                return (
+                    <>
+                        <FullDeckView 
+                            allCards={char.deck} 
+                            onBack={() => setView('activeDeck')} 
+                            onAddCard={addCardToFull} 
+                            onDeleteCard={deleteCard} 
+                            onToggleActive={toggleCardActive} 
+                            onEditEffect={(id) => setEffectModal({ open: true, cardId: id })}
+                        />
+                        <CardEffectModal isOpen={effectModal.open} onClose={() => setEffectModal({ open: false, cardId: null })} onSelect={setCardEffect} />
+                    </>
+                );
+            }
+
+            // Main Sheet View
             return (
                 <div className={`pb-20 max-w-md mx-auto ${isEditMode ? 'editing' : 'playing'}`}>
                     <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-10 flex justify-between items-center shadow-md">
                         <button onClick={onBack} className="text-gray-400 text-sm">← Esci</button>
-                        <div className="flex gap-2"><button onClick={() => setView('deck')} className="text-[#ca8a04] text-xl p-1" title="Mazzo">🎴</button><button onClick={() => setIsEditMode(!isEditMode)} className={`text-xl p-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-gray-500'}`} title="Modifica">{isEditMode ? "🔓" : "🔒"}</button></div>
+                        <div className="flex gap-2">
+                             <button onClick={() => setView('activeDeck')} className="text-[#ca8a04] text-xl p-1" title="Mazzo">🎴</button>
+                            <button onClick={() => setIsEditMode(!isEditMode)} className={`text-xl p-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-gray-500'}`} title="Modifica">{isEditMode ? "🔓" : "🔒"}</button>
+                        </div>
                     </div>
 
                     <div className="p-3 space-y-4">
@@ -462,9 +591,7 @@
                                     <input value={char.name} onChange={e => update('name', e.target.value)} className="font-cinzel text-white font-bold leading-none text-2xl w-full bg-transparent text-center focus:outline-none border-b border-[#3f3f46]" placeholder="Nome Eroe" />
                                     : <h1 className="font-cinzel text-white font-bold leading-none text-2xl">{char.name || "Eroe"}</h1>
                                 }
-                                <div onClick={handleLevelUpClick} className={`level-badge ${!isEditMode && totalLevel < 20 ? 'animate-pulse' : ''}`}>
-                                    {totalLevel}
-                                </div>
+                                <div onClick={handleLevelUpClick} className={`level-badge ${!isEditMode && totalLevel < 20 ? 'animate-pulse' : ''}`}>{totalLevel}</div>
                             </div>
                             
                             {/* 3. Info Section (Heritage & Classes) */}
@@ -472,12 +599,9 @@
                                 {isEditMode ? (
                                     <div className="grid gap-2">
                                         <div><label className="text-[10px] text-gray-500 block">Stirpe</label><input value={char.heritage} onChange={e => update('heritage', e.target.value)} className="dh-input py-1 text-sm" placeholder="Stirpe" /></div>
-                                        {/* Class Editor */}
                                         {char.classes.map((c, idx) => (
                                             <div key={idx} className="flex gap-2 items-center bg-[#27272a] p-1 rounded">
-                                                <select value={c.name} onChange={e => updateClass(idx, 'name', e.target.value)} className="bg-transparent text-white text-xs p-1 rounded border border-gray-600">
-                                                    {CLASSES_LIST.map(cn => <option key={cn} value={cn}>{cn}</option>)}
-                                                </select>
+                                                <select value={c.name} onChange={e => updateClass(idx, 'name', e.target.value)} className="bg-transparent text-white text-xs p-1 rounded border border-gray-600">{CLASSES_LIST.map(cn => <option key={cn} value={cn}>{cn}</option>)}</select>
                                                 <input value={c.subclass} onChange={e => updateClass(idx, 'subclass', e.target.value)} className="bg-transparent text-white text-xs p-1 flex-1 border-b border-gray-600 focus:outline-none" placeholder="Sottoclasse" />
                                                 <span className="text-white text-xs font-bold px-2">Lv.{c.level}</span>
                                             </div>
@@ -488,11 +612,7 @@
                                 ) : (
                                     <div className="flex flex-col items-center">
                                         <div className="text-gray-300 mb-1">{char.heritage || "Stirpe Sconosciuta"}</div>
-                                        {char.classes.map((c, idx) => (
-                                            <div key={idx} className="uppercase tracking-widest text-xs">
-                                                {c.name} {c.subclass ? `- ${c.subclass}` : ""} (Lv.{c.level})
-                                            </div>
-                                        ))}
+                                        {char.classes.map((c, idx) => (<div key={idx} className="uppercase tracking-widest text-xs">{c.name} {c.subclass ? `- ${c.subclass}` : ""} (Lv.{c.level})</div>))}
                                     </div>
                                 )}
                             </div>
@@ -564,7 +684,7 @@
                         </div>
                     </div>
                     <DiceModal isOpen={diceState.open} onClose={() => setDiceState({...diceState, open:false})} modifier={diceState.mod} traitName={diceState.name} experiences={char.experiences} onResult={onDiceResult} isAttack={diceState.isAttack} currentHope={char.hope.current} />
-                    <ResultModal isOpen={dmgState.open} onClose={() => setDmgState({...dmgState, open:false})} total={dmgState.total} detail={dmgState.detail} title={dmgState.title} />
+                    <ResultModal isOpen={dmgState.open} onClose={() => setDmgState({...dmgState, open:false})} total={dmgState.total} detail={dmgState.detail} title={dmgState.title} cost={dmgState.cost} />
                     <LevelUpModal isOpen={levelUpModalOpen} onClose={() => setLevelUpModalOpen(false)} classes={char.classes} onLevelUp={performLevelUp} />
                 </div>
             );
@@ -578,9 +698,9 @@
         );
 
         const App = () => {
-            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v11') || '[null,null,null,null,null]'));
+            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v13') || '[null,null,null,null,null]'));
             const [active, setActive] = useState(null);
-            useEffect(() => localStorage.setItem('dh_mobile_v11', JSON.stringify(slots)), [slots]);
+            useEffect(() => localStorage.setItem('dh_mobile_v13', JSON.stringify(slots)), [slots]);
             const save = (c) => { const ns = [...slots]; ns[active] = c; setSlots(ns); };
             const create = (i) => { const ns = [...slots]; ns[i] = JSON.parse(JSON.stringify(DEFAULT_CHAR)); setSlots(ns); setActive(i); };
             return active !== null ? <CharacterSheet data={slots[active]} onSave={save} onBack={() => setActive(null)} /> : <SlotManager slots={slots} onSelect={setActive} onCreate={create} onDelete={i => {const ns=[...slots]; ns[i]=null; setSlots(ns);}} />;
