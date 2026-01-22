@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daggerheart - Scheda Personaggio</title>
+    
+    <!-- Librerie React e Tailwind -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --bg-dark: #121212; 
+            --bg-panel: #1e1e1e; 
+            --border-color: #3f3f46; 
+            --gold: #ca8a04; 
+            --red: #991b1b; 
+            --text-main: #e4e4e7; 
+        }
+
+        body { 
+            font-family: 'Lato', sans-serif; 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+            overscroll-behavior-y: none; 
+        }
+
+        h1, h2, h3, .font-cinzel { font-family: 'Cinzel', serif; }
+        
+        /* Utility Classes */
+        .pip-container { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+        .pip { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #525252; background: transparent; transition: all 0.2s ease; cursor: pointer; }
+        .pip.active { background-color: var(--text-main); border-color: var(--text-main); box-shadow: 0 0 4px rgba(255,255,255,0.5); }
+        .pip.hp.active { background-color: #ef4444; border-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        .pip.stress.active { background-color: #d8b4fe; border-color: #d8b4fe; box-shadow: 0 0 6px #d8b4fe; }
+        .pip.hope.active { background-color: #facc15; border-color: #facc15; box-shadow: 0 0 6px #facc15; }
+        .pip.armor.active { background-color: #60a5fa; border-color: #60a5fa; box-shadow: 0 0 6px #60a5fa; }
+        .pip.gold-chest.active { background-color: #fbbf24; border-color: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+        .pip.gold.active { background-color: #fbbf24; border-color: #fbbf24; }
+
+        .dh-panel { background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px; position: relative; }
+        .dh-input { background: #27272a; border: 1px solid #3f3f46; color: white; padding: 8px; border-radius: 4px; width: 100%; font-size: 1rem; transition: all 0.2s; }
+        .dh-input.read-only { background: transparent; border: 1px solid transparent; padding: 0; color: var(--gold); font-weight: bold; pointer-events: none; }
+        .dh-input:focus { outline: none; border-color: var(--gold); }
+        
+        select.dh-input { -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1em; padding-right: 2rem; }
+        select.dh-input.read-only { background-image: none; padding-right: 0; appearance: none; }
+
+        .stat-box { display: flex; flex-direction: column; align-items: center; background: #27272a; border: 1px solid #3f3f46; border-radius: 6px; padding: 8px 4px; cursor: pointer; position: relative; transition: border-color 0.2s; }
+        .stat-val-display { font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.5rem; text-align: center; width: 40px; }
+        .stat-arrow { color: #71717a; padding: 2px 8px; cursor: pointer; font-size: 0.8rem; user-select: none; }
+        
+        .char-portrait { width: 160px; height: 160px; border: 3px solid var(--gold); object-fit: cover; margin: 0 auto 16px auto; display: block; background: #27272a; cursor: pointer; border-radius: 4px; }
+        
+        .editing .dh-input { border-color: #525252; background: #27272a; pointer-events: auto; }
+        .playing .dh-input { border-color: transparent; background: transparent; pointer-events: none; }
+        .playing .edit-only { display: none !important; }
+        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; backdrop-filter: blur(4px); }
+        .dice-result { font-family: 'Cinzel', serif; animation: popIn 0.3s ease-out; }
+        
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes resultPulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(255,255,255,0.2); } 100% { transform: scale(1); } }
+        
+        .result-box-large {
+            padding: 16px;
+            width: 100%;
+            text-align: center;
+            border-radius: 8px;
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 10px;
+            animation: resultPulse 2s infinite ease-in-out;
+            border-width: 2px;
+        }
+
+        .mode-btn { flex: 1; padding: 8px; text-align: center; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; cursor: pointer; border: 1px solid #3f3f46; transition: all 0.2s; }
+        .mode-btn:first-child { border-radius: 6px 0 0 6px; }
+        .mode-btn:last-child { border-radius: 0 6px 6px 0; }
+        .mode-btn.active-normal { background-color: #3f3f46; color: white; border-color: #52525b; }
+        .mode-btn.active-adv { background-color: #15803d; color: white; border-color: #16a34a; }
+        .mode-btn.active-dis { background-color: #b91c1c; color: white; border-color: #dc2626; }
+
+        .die-box { width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 2.5rem; font-weight: bold; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .die-hope { background-color: #f3f4f6; color: #000; border: 3px solid #d1d5db; }
+        .die-fear { background-color: #111827; color: #fff; border: 3px solid #374151; }
+        
+        .weapon-swap-btn {
+            background-color: #27272a; border: 1px solid #3f3f46; color: #ca8a04;
+            text-transform: uppercase; font-size: 0.7rem; padding: 4px 8px;
+            border-radius: 4px; font-weight: bold; cursor: pointer;
+            margin-top: 8px; width: 100%; transition: all 0.2s;
+        }
+        .weapon-swap-btn:hover { background-color: #3f3f46; color: white; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- COSTANTI ---
+        const TRAITS = { agility: "Agilità", strength: "Forza", finesse: "Finezza", instinct: "Istinto", presence: "Presenza", knowledge: "Conoscenza" };
+        const TRAIT_SKILLS = {
+            agility: "Scatto, Balzo, Manovra", strength: "Sollevare, Fracassare, Lottare", finesse: "Controllare, Nascondersi, Armeggiare",
+            instinct: "Percepire, Intuire, Orientarsi", presence: "Affascinare, Esibirsi, Ingannare", knowledge: "Rammentare, Analizzare, Compr."
+        };
+        const DICE = ["d4", "d6", "d8", "d10", "d12", "d20"];
+        const CLASSES_LIST = ["Bardo", "Druido", "Guardiano", "Ranger", "Ladro", "Serafino", "Stregone", "Guerriero", "Mago"];
+
+        const DEFAULT_CHAR = {
+            name: "Eroe", playerName: "", 
+            classes: [{ name: "Bardo", subclass: "", level: 1 }], 
+            heritage: "", proficiency: 1, charImg: null,
+            traits: { agility: 0, strength: 0, finesse: 0, instinct: 0, presence: 0, knowledge: 0 },
+            evasion: 10, armorScore: 0,
+            activeArmor: { name: "Armatura Base", baseThresholds: "5 / 10 / 15", baseScore: 1, traits: "Leggera", feature: "" },
+            thresholds: { minor: 6, major: 12 },
+            hp: { current: 0, max: 6 }, stress: { current: 0, max: 6 }, hope: { current: 2, max: 6 }, armorSlots: { current: 0, max: 6 },
+            experiences: Array(5).fill({ text: "", mod: 0, cost: 1 }),
+            gold: { handfuls: 0, bags: 0, chests: 0 },
+            classFeature: "", deck: [], 
+            weapons: [{ id: 1, name: "", trait: "agility", range: "Mischia", grip: "Una mano", activeSlot: "primary", damageRows: [{ count: 1, die: "d8", mod: 0, type: "fis" }], feature: "", ammo: "" }],
+            inventory: "", potions: [], notes: ""
+        };
+
+        const compressImage = (file) => new Promise((resolve) => {
+            const reader = new FileReader(); reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image(); img.src = e.target.result;
+                img.onload = () => {
+                    const cvs = document.createElement('canvas');
+                    const scale = 500 / img.width; cvs.width = 500; cvs.height = img.height * scale;
+                    cvs.getContext('2d').drawImage(img, 0, 0, cvs.width, cvs.height);
+                    resolve(cvs.toDataURL('image/jpeg', 0.7));
+                };
+            };
+        });
+
+        // --- COMPONENTI UI BASE ---
+
+        const PipTracker = ({ total, current, onChange, type }) => {
+            const safeTotal = Math.max(0, parseInt(total) || 0);
+            return (
+                <div className="pip-container">
+                    {[...Array(safeTotal)].map((_, i) => (
+                        <div key={i} onClick={() => onChange((i === 0 && current === 1) ? 0 : (i + 1 === current ? current - 1 : i + 1))} 
+                             className={`pip ${type} ${i < current ? 'active' : ''}`}></div>
+                    ))}
+                </div>
+            );
+        };
+
+        const StatBox = ({ label, value, skillText, statKey, onClick, onChange, isEditMode }) => (
+            <div className={`stat-box ${!isEditMode ? 'hover:border-[#ca8a04]' : ''}`} onClick={onClick}>
+                <span className="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-1">{label}</span>
+                <div className="flex items-center justify-center w-full gap-2">
+                    {isEditMode && <div onClick={(e)=>{e.stopPropagation(); if(value>-10) onChange(statKey, parseInt(value)-1)}} className="stat-arrow text-2xl">▼</div>}
+                    <div className={`stat-val-display ${!isEditMode ? 'text-white' : 'text-[#ca8a04]'}`}>{value}</div>
+                    {isEditMode && <div onClick={(e)=>{e.stopPropagation(); if(value<10) onChange(statKey, parseInt(value)+1)}} className="stat-arrow text-2xl">▲</div>}
+                </div>
+                <span className="text-[9px] text-center text-gray-500 leading-tight mt-1 px-1">{skillText}</span>
+            </div>
+        );
+
+        const ExperienceRow = ({ exp, index, onUpdate, isEditMode }) => {
+            const update = (field, val) => { const n = {...exp, [field]: val}; onUpdate(n); };
+            return (
+                <div className="flex items-center gap-2 mb-2 bg-[#27272a] p-1 rounded border border-[#3f3f46]">
+                    <input value={exp.text} onChange={(e) => update('text', e.target.value)} 
+                           className={`bg-transparent text-sm text-gray-200 flex-1 px-2 focus:outline-none ${!isEditMode ? 'pointer-events-none' : ''}`} placeholder="Esperienza..." />
+                    
+                    {/* Modificatore */}
+                    <div className="flex items-center border-l border-[#525252] pl-2">
+                        {isEditMode && <div onClick={() => exp.mod > -10 && update('mod', exp.mod - 1)} className="stat-arrow text-xs cursor-pointer px-1">▼</div>}
+                        <div className={`text-sm font-bold w-6 text-center ${exp.mod === 0 ? 'text-gray-600' : 'text-[#ca8a04]'}`}>{exp.mod > 0 ? '+'+exp.mod : exp.mod}</div>
+                        {isEditMode && <div onClick={() => exp.mod < 10 && update('mod', exp.mod + 1)} className="stat-arrow text-xs cursor-pointer px-1">▲</div>}
+                    </div>
+
+                    {/* Costo Speranza */}
+                    <div className="flex items-center border-l border-[#525252] pl-2 ml-1">
+                        <span className="text-[8px] text-yellow-600 uppercase mr-1">Costo</span>
+                        {isEditMode && <div onClick={() => exp.cost > 1 && update('cost', exp.cost - 1)} className="stat-arrow text-xs cursor-pointer px-1">▼</div>}
+                        <div className="text-xs font-bold text-yellow-500 w-4 text-center">{exp.cost || 1}</div>
+                        {isEditMode && <div onClick={() => exp.cost < 5 && update('cost', exp.cost + 1)} className="stat-arrow text-xs cursor-pointer px-1">▲</div>}
+                        {!isEditMode && <span className="text-[8px] text-yellow-600 ml-1">SP</span>}
+                    </div>
+                </div>
+            );
+        };
+
+        const DiceModal = ({ isOpen, onClose, trait, mod, experiences, currentHope, onRoll }) => {
+            const [selectedExps, setSelectedExps] = useState([]);
+            const [rollResult, setRollResult] = useState(null);
+            const [rollMode, setRollMode] = useState('normal'); 
+            const [extraBonus, setExtraBonus] = useState(0);
+            const [isRolling, setIsRolling] = useState(false);
+            const [animDice, setAnimDice] = useState({ d1: 1, d2: 1 });
+
+            useEffect(() => {
+                if (isOpen) {
+                    setSelectedExps([]);
+                    setRollResult(null);
+                    setRollMode('normal');
+                    setExtraBonus(0);
+                    setIsRolling(false);
+                }
+            }, [isOpen]);
+
+            if (!isOpen) return null;
+
+            const toggleExp = (index) => {
+                if (selectedExps.includes(index)) {
+                    setSelectedExps(selectedExps.filter(i => i !== index));
+                } else {
+                    const exp = experiences[index];
+                    const currentCost = selectedExps.reduce((acc, i) => acc + (experiences[i].cost || 1), 0);
+                    if (currentCost + (exp.cost || 1) <= currentHope) {
+                        setSelectedExps([...selectedExps, index]);
+                    }
+                }
+            };
+
+            const calculateTotalCost = () => selectedExps.reduce((acc, i) => acc + (experiences[i].cost || 1), 0);
+            const calculateTotalBonus = () => selectedExps.reduce((acc, i) => acc + (experiences[i].mod || 0), 0);
+
+            const handleRoll = () => {
+                setIsRolling(true);
+                const animInterval = setInterval(() => {
+                    setAnimDice({
+                        d1: Math.floor(Math.random() * 12) + 1,
+                        d2: Math.floor(Math.random() * 12) + 1
+                    });
+                }, 80);
+
+                setTimeout(() => {
+                    clearInterval(animInterval);
+                    const d1 = Math.floor(Math.random() * 12) + 1;
+                    const d2 = Math.floor(Math.random() * 12) + 1;
+                    const d6 = Math.floor(Math.random() * 6) + 1;
+                    
+                    const bonus = calculateTotalBonus();
+                    let modeVal = 0;
+                    if (rollMode === 'adv') modeVal = d6;
+                    if (rollMode === 'dis') modeVal = -d6;
+
+                    const total = d1 + d2 + mod + bonus + modeVal + extraBonus;
+                    const cost = calculateTotalCost();
+                    
+                    setRollResult({ d1, d2, d6, total, cost, rollMode, extraBonus });
+                    setIsRolling(false);
+                    
+                    if (onRoll) onRoll(cost);
+                }, 1000); 
+            };
+
+            const totalCost = calculateTotalCost();
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-[#ca8a04] w-full max-w-sm rounded-lg p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-xl text-[#ca8a04] mb-4 text-center">Tiro {trait}</h2>
+                        
+                        {!rollResult && !isRolling ? (
+                            <>
+                                <div className="flex mb-4 bg-[#27272a] rounded p-1">
+                                    <div onClick={() => setRollMode('dis')} className={`mode-btn ${rollMode === 'dis' ? 'active-dis' : 'text-gray-400 hover:bg-[#3f3f46]'}`}>Svantaggio (-1d6)</div>
+                                    <div onClick={() => setRollMode('normal')} className={`mode-btn ${rollMode === 'normal' ? 'active-normal' : 'text-gray-400 hover:bg-[#3f3f46]'}`}>Normale</div>
+                                    <div onClick={() => setRollMode('adv')} className={`mode-btn ${rollMode === 'adv' ? 'active-adv' : 'text-gray-400 hover:bg-[#3f3f46]'}`}>Vantaggio (+1d6)</div>
+                                </div>
+
+                                <div className="text-center text-gray-400 text-sm mb-4">Modificatore Base: <b className="text-white">{mod > 0 ? '+'+mod : mod}</b></div>
+
+                                <div className="mb-4">
+                                    <div className="flex justify-between text-xs text-gray-500 uppercase mb-2 font-bold border-b border-gray-700 pb-1">
+                                        <span>Esperienze Utilizzabili</span>
+                                        <span className={totalCost > 0 ? "text-yellow-500" : ""}>Costo: {totalCost} / {currentHope} SP</span>
+                                    </div>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                                        {experiences.filter(e => e.text).map((exp, i) => {
+                                            const isSelected = selectedExps.includes(i);
+                                            const cost = exp.cost || 1;
+                                            const canAfford = isSelected || (totalCost + cost <= currentHope);
+                                            
+                                            return (
+                                                <div key={i} onClick={() => canAfford && toggleExp(i)} 
+                                                     className={`flex justify-between items-center p-2 rounded border cursor-pointer transition-colors ${isSelected ? 'bg-[#ca8a04] border-[#ca8a04] text-black' : (canAfford ? 'bg-[#27272a] border-[#3f3f46] text-gray-300 hover:border-gray-500' : 'bg-[#27272a] border-[#3f3f46] text-gray-600 opacity-50 cursor-not-allowed')}`}>
+                                                    <span className="text-sm font-bold truncate flex-1">{exp.text}</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="font-bold">{exp.mod > 0 ? '+'+exp.mod : exp.mod}</span>
+                                                        <span className="text-[10px] font-bold border border-current px-1 rounded">{cost} SP</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {experiences.filter(e => e.text).length === 0 && <div className="text-center text-gray-600 italic text-xs">Nessuna esperienza definita</div>}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-center gap-4 mb-4 bg-[#27272a] p-2 rounded">
+                                    <span className="text-xs uppercase text-gray-400 font-bold">Extra Bonus</span>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => extraBonus > -1 && setExtraBonus(extraBonus - 1)} className="w-8 h-8 flex items-center justify-center bg-[#3f3f46] rounded text-white font-bold hover:bg-[#52525b]">-</button>
+                                        <span className={`w-8 text-center font-bold ${extraBonus !== 0 ? 'text-[#ca8a04]' : 'text-gray-500'}`}>{extraBonus > 0 ? '+'+extraBonus : extraBonus}</span>
+                                        <button onClick={() => extraBonus < 10 && setExtraBonus(extraBonus + 1)} className="w-8 h-8 flex items-center justify-center bg-[#3f3f46] rounded text-white font-bold hover:bg-[#52525b]">+</button>
+                                    </div>
+                                </div>
+
+                                <button onClick={handleRoll} className="w-full py-3 bg-[#ca8a04] hover:bg-[#a16207] text-black font-bold rounded text-lg uppercase tracking-wide shadow-lg">Lancia Dadi</button>
+                            </>
+                        ) : (
+                            <div className="text-center py-4">
+                                <div className="flex justify-center gap-6 mb-6">
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-gray-500 uppercase mb-1">Speranza</span>
+                                        <div className="die-box die-hope">
+                                            {isRolling ? animDice.d1 : rollResult.d1}
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-gray-500 uppercase mb-1">Paura</span>
+                                        <div className="die-box die-fear">
+                                            {isRolling ? animDice.d2 : rollResult.d2}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {!isRolling && (
+                                    <>
+                                        {rollResult.rollMode !== 'normal' && (
+                                            <div className={`text-sm font-bold mb-2 ${rollResult.rollMode === 'adv' ? 'text-green-400' : 'text-red-400'}`}>
+                                                {rollResult.rollMode === 'adv' ? 'Vantaggio' : 'Svantaggio'}: {rollResult.rollMode === 'adv' ? '+' : '-'}{rollResult.d6} (d6)
+                                            </div>
+                                        )}
+
+                                        <div className="text-sm text-gray-400 mb-4">
+                                            {rollResult.d1 + rollResult.d2} (2d12) + {mod} (Stat) + {calculateTotalBonus()} (Exp) 
+                                            {rollResult.extraBonus !== 0 && <span> {rollResult.extraBonus > 0 ? '+ ' + rollResult.extraBonus : '- ' + Math.abs(rollResult.extraBonus)} (Extra)</span>}
+                                        </div>
+                                        
+                                        <div className="text-6xl font-cinzel text-[#ca8a04] dice-result mb-4">{rollResult.total}</div>
+                                        
+                                        <div className="flex justify-center">
+                                            {rollResult.d1 === rollResult.d2 ? (
+                                                <div className="result-box-large bg-[#ca8a04] text-black border-white shadow-[0_0_20px_rgba(202,138,4,0.6)]">
+                                                    CRITICO
+                                                </div>
+                                            ) : rollResult.d1 > rollResult.d2 ? (
+                                                <div className="result-box-large bg-white text-black border-gray-300">
+                                                    CON SPERANZA
+                                                </div>
+                                            ) : (
+                                                <div className="result-box-large bg-black text-white border-gray-600">
+                                                    CON PAURA
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {rollResult.cost > 0 && <div className="text-xs text-red-400 mt-2 font-bold">- {rollResult.cost} Speranza</div>}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {!isRolling && <button onClick={onClose} className="mt-4 text-gray-500 text-xs underline w-full text-center">Chiudi</button>}
+                    </div>
+                </div>
+            );
+        };
+
+        const ActiveArmorPanel = ({ armor, onUpdateArmor, isEditMode }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="dh-panel border-l-4 border-l-blue-600 bg-[#1e1e1e]">
+                    <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+                        <h3 className="font-cinzel text-sm text-blue-400 uppercase flex items-center gap-2">
+                            {isOpen ? '▼' : '▶'} Armatura Attiva
+                        </h3>
+                        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                            <span className="text-[10px] uppercase text-blue-300">Punt. Base</span>
+                            {isEditMode ? 
+                                <select value={armor.baseScore} onChange={e=>onUpdateArmor('baseScore', parseInt(e.target.value))} className="bg-[#27272a] text-white text-sm border border-gray-600 rounded">
+                                    {[...Array(15)].map((_, i) => <option key={i} value={i}>{i}</option>)}
+                                </select> 
+                                : <span className="font-bold text-lg text-white border border-blue-900 bg-blue-900/20 px-2 rounded">{armor.baseScore}</span>
+                            }
+                        </div>
+                    </div>
+                    {isOpen && (
+                        <div className="grid gap-2">
+                            <div><label className="text-[10px] text-gray-500 uppercase font-bold">Nome</label><input value={armor.name} onChange={e => onUpdateArmor('name', e.target.value)} className={`dh-input font-bold ${!isEditMode ? 'read-only' : ''}`} /></div>
+                            <div><label className="text-[10px] text-gray-500 uppercase font-bold">Soglie Base</label><input value={armor.baseThresholds} onChange={e => onUpdateArmor('baseThresholds', e.target.value)} className={`dh-input text-xs ${!isEditMode ? 'read-only' : ''}`} /></div>
+                            <div><label className="text-[10px] text-gray-500 uppercase font-bold">Caratteristiche</label><input value={armor.traits} onChange={e => onUpdateArmor('traits', e.target.value)} className={`dh-input text-xs ${!isEditMode ? 'read-only' : ''}`} /></div>
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-bold">Peculiarità</label>
+                                {isEditMode ? <textarea value={armor.feature} onChange={e => onUpdateArmor('feature', e.target.value)} className="dh-input text-xs h-16" /> : <div className="text-xs text-gray-300 italic min-h-[1.5rem]">{armor.feature || "Nessuna peculiarità"}</div>}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const InventoryPanel = ({ inventory, onUpdate, isEditMode }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="dh-panel border-l-4 border-l-gray-600 bg-[#1e1e1e]">
+                    <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+                        <h3 className="font-cinzel text-sm text-gray-300 uppercase flex items-center gap-2">
+                            {isOpen ? '▼' : '▶'} Inventario
+                        </h3>
+                    </div>
+                    {isOpen && (
+                        isEditMode ? 
+                        <textarea value={inventory} onChange={e => onUpdate(e.target.value)} className="dh-input h-32 text-sm" placeholder="Lista oggetti..." /> 
+                        : <div className="text-sm text-gray-300 whitespace-pre-wrap">{inventory || "Inventario vuoto."}</div>
+                    )}
+                </div>
+            );
+        };
+
+        const WeaponCard = ({ weapon, onChange, isEditMode, onEquip, label }) => {
+            const update = (f, v) => onChange({...weapon, [f]: v});
+            const updateRow = (i, f, v) => { const rows = [...weapon.damageRows]; rows[i][f] = v; update('damageRows', rows); };
+            const addRow = () => update('damageRows', [...weapon.damageRows, { count: 1, die: "d6", mod: 0, type: "fis" }]);
+            const removeRow = (idx) => update('damageRows', weapon.damageRows.filter((_, i) => i !== idx));
+
+            return (
+                <div className="dh-panel border-l-4 border-l-amber-600 mb-2">
+                    <div className="flex justify-between items-start mb-3 gap-2">
+                        {/* Colonna Nome Arma con Etichetta */}
+                        <div className="flex-1">
+                            <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1 text-left">{label || "ARMA"}</label>
+                            <input value={weapon.name} onChange={e => update('name', e.target.value)} className={`dh-input font-bold w-full ${!isEditMode ? 'read-only text-lg p-0' : ''}`} placeholder={isEditMode ? "Nome Arma" : ""} />
+                        </div>
+
+                        {/* Colonna Impugnatura con Select */}
+                        <div className="flex flex-col items-end shrink-0">
+                            <label className="text-[9px] text-gray-500 uppercase font-bold text-right mb-1">IMPUGNATURA</label>
+                            {isEditMode ? (
+                                <div className="flex flex-col items-end">
+                                    <select 
+                                        value={weapon.grip || ""} 
+                                        onChange={(e) => update('grip', e.target.value)} 
+                                        className="dh-input text-xs py-1 w-32 text-right appearance-none mb-2"
+                                    >
+                                        <option value="">Scegli Impugnatura</option>
+                                        <option value="Una mano">Una mano</option>
+                                        <option value="Due mani">Due mani</option>
+                                    </select>
+                                    
+                                    <label className="text-[9px] text-gray-500 uppercase font-bold text-right mb-1">MUNIZIONI</label>
+                                    <input 
+                                        type="number" 
+                                        value={weapon.ammo || ""} 
+                                        onChange={e => update('ammo', e.target.value)} 
+                                        className="dh-input text-xs w-16 p-1 text-right" 
+                                        placeholder="Qtà" 
+                                    />
+                                </div>
+                            ) : (
+                                <div className="text-white text-xs">{weapon.grip || "-"}</div>
+                            )}
+                        </div>
+                        
+                        {isEditMode && <button onClick={() => onChange(null)} className="text-red-500 font-bold px-2 self-center mt-4">X</button>}
+                    </div>
+
+                    {/* Play Mode Ammo Display */}
+                    {!isEditMode && weapon.ammo !== undefined && weapon.ammo !== "" && (
+                        <div className="mb-2">
+                            <div className="flex items-center justify-between bg-[#121212] p-1 px-2 rounded border border-[#3f3f46]">
+                                <span className="text-[10px] text-gray-400 uppercase font-bold">Munizioni</span>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => update('ammo', parseInt(weapon.ammo) - 1)} className="text-gray-400 hover:text-white font-bold px-1">-</button>
+                                    <span className="text-white font-bold">{weapon.ammo}</span>
+                                    <button onClick={() => update('ammo', parseInt(weapon.ammo) + 1)} className="text-gray-400 hover:text-white font-bold px-1">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {isEditMode ? (
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div><label className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Caratteristica</label><select value={weapon.trait} onChange={e => update('trait', e.target.value)} className="dh-input text-sm py-1">{Object.keys(TRAITS).map(k => <option key={k} value={k}>{TRAITS[k]}</option>)}</select></div>
+                            <div><label className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Gittata</label><input value={weapon.range} onChange={e => update('range', e.target.value)} className="dh-input text-sm py-1" /></div>
+                        </div>
+                    ) : ( <div className="flex justify-between text-xs text-gray-400 uppercase tracking-wider mb-3"><span>{TRAITS[weapon.trait]}</span><span>{weapon.range}</span></div> )}
+                    
+                    {isEditMode ? (
+                        <div className="bg-[#121212] p-2 rounded mb-3 border border-[#3f3f46]">
+                             <label className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Danni</label>
+                             {weapon.damageRows.map((row, i) => (
+                                <div key={i} className="flex gap-1 items-center mb-1">
+                                    <input type="number" value={row.count} onChange={e => updateRow(i, 'count', parseInt(e.target.value))} className="dh-input text-center p-1 w-10 text-sm" />
+                                    <span className="text-gray-500 text-xs">x</span>
+                                    <select value={row.die} onChange={e => updateRow(i, 'die', e.target.value)} className="dh-input p-1 w-16 text-sm">{DICE.map(d => <option key={d} value={d}>{d}</option>)}</select>
+                                    <span className="text-gray-500 text-xs">+</span>
+                                    <input type="number" value={row.mod} onChange={e => updateRow(i, 'mod', parseInt(e.target.value))} className="dh-input text-center p-1 w-10 text-sm" />
+                                    <button onClick={() => removeRow(i)} className="text-red-500 px-2 font-bold">×</button>
+                                </div>
+                            ))}
+                             <button onClick={addRow} className="text-xs text-[#ca8a04] mt-1 font-bold">+ Dado</button>
+                        </div>
+                    ) : ( 
+                        <div className="text-sm text-gray-300 mb-4 bg-[#121212] p-2 rounded border border-[#3f3f46]">
+                            <span className="text-[10px] uppercase text-gray-500 block">Danni</span>
+                            {weapon.damageRows.map(r => `${r.count}${r.die}${r.mod > 0 ? '+'+r.mod : r.mod < 0 ? r.mod : ''}`).join(' + ')}
+                        </div> 
+                    )}
+
+                    {onEquip && !isEditMode && (
+                        <button onClick={onEquip} className="weapon-swap-btn">Equipaggia</button>
+                    )}
+                </div>
+            );
+        };
+
+        const WeaponSwapModal = ({ isOpen, onClose, newWeapon, activeWeapons, onSelect }) => {
+            if(!isOpen) return null;
+            
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-[#ca8a04] w-full max-w-sm rounded-lg p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-lg text-white mb-4 text-center">Scegli quale arma sostituire</h2>
+                        <div className="space-y-3">
+                            {activeWeapons.map((w, i) => (
+                                <div key={i} onClick={() => onSelect(w)} className="bg-[#27272a] border border-[#3f3f46] hover:border-[#ca8a04] p-3 rounded cursor-pointer">
+                                    <div className="text-xs text-gray-500 font-bold uppercase mb-1">{w.activeSlot === 'primary' ? 'Arma Primaria' : 'Arma Secondaria'}</div>
+                                    <div className="font-bold text-white text-lg">{w.name}</div>
+                                    <div className="text-xs text-gray-400">{TRAITS[w.trait]} • {w.damageRows.map(r => `${r.count}${r.die}`).join('+')}</div>
+                                </div>
+                            ))}
+                        </div>
+                        <button onClick={onClose} className="mt-4 text-gray-500 text-xs underline w-full text-center">Annulla</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const CharacterSheet = ({ data, onSave, onBack }) => {
+            const [char, setChar] = useState(() => {
+                const c = {...data};
+                if(!c.experiences) c.experiences = Array(5).fill({ text: "", mod: 0, cost: 1 });
+                if(!c.deck) c.deck = [];
+                c.experiences = c.experiences.map(e => ({...e, cost: e.cost || 1}));
+                
+                // Init Active Slots for existing weapons if missing
+                if(c.weapons) {
+                    c.weapons = c.weapons.map((w, i) => {
+                        if(w.activeSlot) return w;
+                        // Migration logic: first is primary, second secondary (if not 2H primary), rest none
+                        if (i === 0) return { ...w, activeSlot: 'primary', id: w.id || Date.now() };
+                        if (i === 1 && c.weapons[0].grip !== 'Due mani') return { ...w, activeSlot: 'secondary', id: w.id || Date.now()+1 };
+                        return { ...w, activeSlot: 'none', id: w.id || Date.now()+i };
+                    });
+                }
+                if(c.weapons) c.weapons = c.weapons.map(w => ({...w, grip: w.grip || ""}));
+                return c;
+            });
+            
+            const [isEditMode, setIsEditMode] = useState(char.name === "Eroe");
+            const [diceModal, setDiceModal] = useState({ open: false, trait: '', mod: 0 });
+            const [showFeatures, setShowFeatures] = useState(false);
+            const [showInventory, setShowInventory] = useState(false);
+            
+            const [swapModal, setSwapModal] = useState({ open: false, newWeapon: null });
+
+            const imgInput = useRef(null);
+
+            useEffect(() => onSave(char), [char]);
+
+            const update = (f, v) => setChar(p => ({...p, [f]: v}));
+            const updateDeep = (cat, field, val) => setChar(p => ({...p, [cat]: {...p[cat], [field]: val}}));
+            const updateTrait = (k, v) => setChar(p => ({...p, traits: {...p.traits, [k]: parseInt(v)||0}}));
+            const updateExp = (idx, newExp) => { const newExps = [...char.experiences]; newExps[idx] = newExp; setChar(p => ({...p, experiences: newExps})); };
+            const updateClass = (idx, field, val) => { const newClasses = [...char.classes]; newClasses[idx] = { ...newClasses[idx], [field]: val }; setChar(p => ({...p, classes: newClasses})); };
+            
+            const handleImgUpload = async (e) => { if(e.target.files[0]) update('charImg', await compressImage(e.target.files[0])); };
+            const addClass = () => { if (char.classes.length < 2) setChar(p => ({...p, classes: [...p.classes, { name: "Bardo", subclass: "", level: 1 }]})); };
+
+            const totalLevel = char.classes.reduce((acc, c) => acc + (parseInt(c.level) || 1), 0);
+
+            // Dice Rolling Logic
+            const openDiceModal = (key) => {
+                if (!isEditMode) {
+                    setDiceModal({ open: true, trait: TRAITS[key], mod: char.traits[key] });
+                }
+            };
+
+            const handleDiceRollResult = (cost) => {
+                if (cost > 0) {
+                    const newHope = Math.max(0, char.hope.current - cost);
+                    updateDeep('hope', 'current', newHope);
+                }
+            };
+
+            // Weapon Logic
+            const activeWeapons = char.weapons.filter(w => w.activeSlot === 'primary' || w.activeSlot === 'secondary');
+            const inventoryWeapons = char.weapons.filter(w => w.activeSlot === 'none' || !w.activeSlot);
+
+            const equipWeapon = (targetWeapon) => {
+                const isTwoHanded = targetWeapon.grip === "Due mani";
+                const currentPrimary = activeWeapons.find(w => w.activeSlot === 'primary');
+                const currentSecondary = activeWeapons.find(w => w.activeSlot === 'secondary');
+
+                let newWeapons = [...char.weapons];
+
+                // Helper to update slot
+                const setSlot = (id, slot) => {
+                    newWeapons = newWeapons.map(w => w.id === id ? { ...w, activeSlot: slot } : w);
+                };
+
+                if (isTwoHanded) {
+                    // Unequip all active
+                    activeWeapons.forEach(w => setSlot(w.id, 'none'));
+                    // Equip target as primary
+                    setSlot(targetWeapon.id, 'primary');
+                    setChar(p => ({ ...p, weapons: newWeapons }));
+                } else {
+                    // Target is One Handed
+                    if (currentPrimary && currentPrimary.grip === "Due mani") {
+                        // Swap with 2H
+                        setSlot(currentPrimary.id, 'none');
+                        setSlot(targetWeapon.id, 'primary');
+                        setChar(p => ({ ...p, weapons: newWeapons }));
+                    } else if (activeWeapons.length < 2) {
+                        // Empty slot available
+                        const targetSlot = !currentPrimary ? 'primary' : 'secondary';
+                        setSlot(targetWeapon.id, targetSlot);
+                        setChar(p => ({ ...p, weapons: newWeapons }));
+                    } else {
+                        // Both slots full with 1H weapons -> Trigger Swap Modal
+                        setSwapModal({ open: true, newWeapon: targetWeapon });
+                    }
+                }
+            };
+
+            const finalizeSwap = (weaponToUnequip) => {
+                let newWeapons = [...char.weapons];
+                // Unequip selected
+                newWeapons = newWeapons.map(w => w.id === weaponToUnequip.id ? { ...w, activeSlot: 'none' } : w);
+                // Equip new weapon in that slot
+                newWeapons = newWeapons.map(w => w.id === swapModal.newWeapon.id ? { ...w, activeSlot: weaponToUnequip.activeSlot } : w);
+                
+                setChar(p => ({ ...p, weapons: newWeapons }));
+                setSwapModal({ open: false, newWeapon: null });
+            };
+
+            return (
+                <div className={`pb-20 max-w-md mx-auto ${isEditMode ? 'editing' : 'playing'}`}>
+                    <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-50 flex justify-between items-center shadow-md">
+                        <button onClick={onBack} className="text-gray-400 text-sm">← Lista</button>
+                        <div className="text-[#ca8a04] font-cinzel font-bold">{isEditMode ? "COMPILAZIONE SCHEDA" : "SCHEDA PERSONAGGIO"}</div>
+                        <button onClick={() => setIsEditMode(!isEditMode)} className={`text-xl p-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-gray-500'}`} title="Modifica">
+                            {isEditMode ? "Salva" : "Modifica"}
+                        </button>
+                    </div>
+
+                    <div className="p-3 space-y-4">
+                        <div className="text-center mt-2 relative">
+                            <input type="file" ref={imgInput} onChange={handleImgUpload} className="hidden" accept="image/*"/>
+                            <img src={char.charImg || "https://placehold.co/200x200/27272a/gray?text=NO+IMG"} className="char-portrait" onClick={()=>isEditMode && imgInput.current.click()} />
+                            <div className="flex items-center justify-center gap-3">
+                                {isEditMode ? 
+                                    <input value={char.name} onChange={e => update('name', e.target.value)} className="font-cinzel text-[#ca8a04] font-bold text-2xl w-full bg-transparent text-center border-b border-[#3f3f46] mb-2" placeholder="Nome Eroe" />
+                                    : (
+                                        <div className="flex items-center gap-3">
+                                            <h1 className="font-cinzel text-[#ca8a04] font-bold text-3xl mb-0 leading-none">{char.name}</h1>
+                                            <div className="flex-shrink-0 w-8 h-8 rounded-full border-2 border-[#ca8a04] bg-[#1e1e1e] flex items-center justify-center text-[#ca8a04] font-cinzel font-bold text-lg shadow-[0_0_8px_rgba(202,138,4,0.4)] relative -top-0.5">{totalLevel}</div>
+                                        </div>
+                                    )
+                                }
+                            </div>
+                            <div className={`${isEditMode ? 'text-sm text-[#ca8a04] font-bold bg-[#1e1e1e] p-3 rounded border border-[#3f3f46]' : 'mt-1 mb-2'}`}>
+                                {isEditMode ? (
+                                    <div className="grid gap-2 text-left">
+                                        <div><label className="text-[10px] text-gray-500 block">Stirpe</label><input value={char.heritage} onChange={e => update('heritage', e.target.value)} className="dh-input py-1 text-sm" placeholder="Es. Elfo, Nano..." /></div>
+                                        {char.classes.map((c, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center bg-[#27272a] p-1 rounded">
+                                                <select value={c.name} onChange={e => updateClass(idx, 'name', e.target.value)} className="bg-transparent text-white text-xs p-1 rounded border border-gray-600">{CLASSES_LIST.map(cn => <option key={cn} value={cn}>{cn}</option>)}</select>
+                                                <input value={c.subclass} onChange={e => updateClass(idx, 'subclass', e.target.value)} className="bg-transparent text-white text-xs p-1 flex-1 border-b border-gray-600 focus:outline-none" placeholder="Sottoclasse" />
+                                                <span className="text-white text-xs font-bold whitespace-nowrap px-1">Lv.</span>
+                                                <input type="number" value={c.level} onChange={e => updateClass(idx, 'level', parseInt(e.target.value))} className="w-10 bg-transparent border-b border-gray-600 text-center text-xs" />
+                                            </div>
+                                        ))}
+                                        {char.classes.length < 2 && <button onClick={addClass} className="text-xs text-white border border-gray-600 rounded p-1 text-center hover:bg-white/10">+ Multiclasse</button>}
+                                        <div className="mt-1"><label className="text-[10px] text-gray-500 block">Giocatore</label><input value={char.playerName} onChange={e => update('playerName', e.target.value)} className="dh-input py-1 text-sm" /></div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center">
+                                        <div className="text-gray-400 text-xs uppercase tracking-wider font-semibold">
+                                            {char.heritage} <span className="text-[#ca8a04] mx-1">•</span> {char.classes.map(c => `${c.name} ${c.subclass ? `(${c.subclass})` : ''}`).join(' / ')}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            {Object.keys(TRAITS).map(k => (
+                                <StatBox key={k} label={TRAITS[k]} value={char.traits[k]} skillText={TRAIT_SKILLS[k]} statKey={k} onChange={updateTrait} isEditMode={isEditMode} onClick={() => openDiceModal(k)} />
+                            ))}
+                        </div>
+
+                        <div className="bg-[#1e1e1e] border border-red-900/50 rounded p-3">
+                            <h3 className="text-center text-red-400 font-bold uppercase text-xs mb-3 tracking-widest">Soglie di danno</h3>
+                            <div className="flex items-center justify-between text-center relative px-1">
+                                <div className="flex flex-col items-center z-10 bg-[#1e1e1e]">
+                                    <span className="text-[10px] text-red-400 font-bold uppercase leading-none">Danno<br/>minore</span>
+                                    <span className="text-[9px] text-red-400 font-bold mt-1">(1 Danno)</span>
+                                </div>
+                                <div className="flex-1 flex justify-center px-1">
+                                    {isEditMode ? <input type="number" value={char.thresholds.minor} onChange={e=>updateDeep('thresholds','minor',parseInt(e.target.value))} className="w-10 bg-[#27272a] text-white text-center rounded p-1 font-bold focus:outline-none border border-[#3f3f46] focus:border-[#ca8a04]" /> : <div className="font-cinzel text-xl text-white bg-[#27272a] px-3 py-1 rounded border border-[#3f3f46]">{char.thresholds.minor}</div>}
+                                </div>
+                                <div className="flex flex-col items-center z-10 bg-[#1e1e1e]">
+                                     <span className="text-[10px] text-red-400 font-bold uppercase leading-none">Danno<br/>maggiore</span>
+                                    <span className="text-[9px] text-red-400 font-bold mt-1">(2 Danni)</span>
+                                </div>
+                                <div className="flex-1 flex justify-center px-1">
+                                     {isEditMode ? <input type="number" value={char.thresholds.major} onChange={e=>updateDeep('thresholds','major',parseInt(e.target.value))} className="w-10 bg-[#27272a] text-white text-center rounded p-1 font-bold focus:outline-none border border-[#3f3f46] focus:border-[#ca8a04]" /> : <div className="font-cinzel text-xl text-white bg-[#27272a] px-3 py-1 rounded border border-[#3f3f46]">{char.thresholds.major}</div>}
+                                </div>
+                                <div className="flex flex-col items-center z-10 bg-[#1e1e1e]">
+                                     <span className="text-[10px] text-red-400 font-bold uppercase leading-none">Danno<br/>grave</span>
+                                    <span className="text-[9px] text-red-400 font-bold mt-1">(3 Danni)</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="dh-panel flex items-center justify-between">
+                            <span className="text-xs uppercase font-bold text-white">Evasione</span>
+                            {isEditMode ? <input type="number" value={char.evasion} onChange={e => update('evasion', parseInt(e.target.value))} className="text-2xl font-cinzel bg-transparent text-white text-right w-20 focus:outline-none" /> : <div className="text-2xl font-cinzel text-white">{char.evasion}</div>}
+                        </div>
+
+                        <div className="dh-panel space-y-4">
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-blue-400">Slot Armatura</span>{isEditMode && <input type="number" value={char.armorSlots.max} onChange={e=>updateDeep('armorSlots','max', parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/>}</div><PipTracker total={Math.min(12, char.armorSlots.max)} current={char.armorSlots.current} onChange={v => updateDeep('armorSlots','current', v)} type="armor" /></div>
+                            <hr className="border-[#3f3f46]" />
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-red-400">Punti Ferita</span>{isEditMode ? <input type="number" value={char.hp.max} onChange={e=>updateDeep('hp','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hp.max}</span>}</div><PipTracker total={char.hp.max} current={char.hp.current} onChange={v => updateDeep('hp','current',v)} type="hp" /></div>
+                            <hr className="border-[#3f3f46]" />
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-purple-400">Stress</span>{isEditMode ? <input type="number" value={char.stress.max} onChange={e=>updateDeep('stress','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.stress.max}</span>}</div><PipTracker total={char.stress.max} current={char.stress.current} onChange={v => updateDeep('stress','current',v)} type="stress" /></div>
+                            <hr className="border-[#3f3f46]" />
+                            <div><div className="flex justify-between mb-1"><span className="text-xs uppercase font-bold text-yellow-400">Speranza</span>{isEditMode ? <input type="number" value={char.hope.max} onChange={e=>updateDeep('hope','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hope.max}</span>}</div><PipTracker total={char.hope.max} current={char.hope.current} onChange={v => updateDeep('hope','current',v)} type="hope" /></div>
+                        </div>
+
+                        <h3 className="font-cinzel text-lg text-[#ca8a04] border-b border-[#3f3f46] pb-1">Armi Attive</h3>
+                        <div className="space-y-3">
+                            {activeWeapons.length > 0 ? activeWeapons.map((w) => (
+                                <WeaponCard 
+                                    key={w.id} 
+                                    weapon={w} 
+                                    isEditMode={isEditMode} 
+                                    label={w.activeSlot === 'primary' ? "ARMA PRIMARIA" : "ARMA SECONDARIA"}
+                                    onChange={nw => { 
+                                        if(nw===null) { 
+                                            const newWs = char.weapons.map(x => x.id === w.id ? {...x, activeSlot: 'none'} : x);
+                                            setChar(p=>({...p, weapons:newWs})); 
+                                        } else { 
+                                            const newWs = char.weapons.map(x => x.id === w.id ? nw : x);
+                                            setChar(p=>({...p, weapons:newWs})); 
+                                        }
+                                    }} 
+                                />
+                            )) : <div className="text-gray-500 text-xs text-center italic">Nessuna arma equipaggiata</div>}
+                        </div>
+
+                        <div className="dh-panel border-l-4 border-l-gray-600 bg-[#1e1e1e]">
+                            <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setShowInventory(!showInventory)}>
+                                <h3 className="font-cinzel text-sm text-[#ca8a04] uppercase flex items-center gap-2">
+                                    {showInventory ? '▼' : '▶'} Altre Armi
+                                </h3>
+                            </div>
+                            {showInventory && (
+                                <div className="space-y-3">
+                                    {inventoryWeapons.map((w) => (
+                                        <WeaponCard 
+                                            key={w.id} 
+                                            weapon={w} 
+                                            isEditMode={isEditMode} 
+                                            label="ARMA IN INVENTARIO"
+                                            onEquip={() => equipWeapon(w)} 
+                                            onChange={nw => { 
+                                                if(nw===null) { 
+                                                    const newWs = char.weapons.filter(x => x.id !== w.id);
+                                                    setChar(p=>({...p, weapons:newWs})); 
+                                                } else { 
+                                                    const newWs = char.weapons.map(x => x.id === w.id ? nw : x);
+                                                    setChar(p=>({...p, weapons:newWs})); 
+                                                }
+                                            }} 
+                                        />
+                                    ))}
+                                    {isEditMode && <button onClick={() => setChar(p => ({...p, weapons: [...p.weapons, { ...DEFAULT_CHAR.weapons[0], id: Date.now(), activeSlot: 'none' }] }))} className="w-full py-2 border border-dashed border-gray-600 text-gray-500 rounded text-sm hover:text-white hover:border-white">+ Aggiungi Arma</button>}
+                                </div>
+                            )}
+                        </div>
+
+                        <ActiveArmorPanel armor={char.activeArmor} onUpdateArmor={(f,v)=>updateDeep('activeArmor',f,v)} isEditMode={isEditMode} />
+
+                        <InventoryPanel inventory={char.inventory} onUpdate={v => update('inventory', v)} isEditMode={isEditMode} />
+
+                        <div className="dh-panel">
+                            <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setShowFeatures(!showFeatures)}>
+                                <h3 className="font-cinzel text-sm text-[#ca8a04] uppercase flex items-center gap-2">
+                                     {showFeatures ? '▼' : '▶'} Privilegi di Classe
+                                </h3>
+                            </div>
+                            {showFeatures && (
+                                isEditMode ? <textarea value={char.classFeature} onChange={e => update('classFeature', e.target.value)} className="dh-input h-24 text-sm" placeholder="Descrivi qui..." /> : <div className="text-sm text-gray-300 whitespace-pre-wrap">{char.classFeature || "Nessun privilegio."}</div>
+                            )}
+                        </div>
+
+                        <div className="dh-panel">
+                            <h3 className="font-cinzel text-sm text-[#ca8a04] mb-2 uppercase">Esperienze</h3>
+                            {char.experiences.map((exp, i) => (<ExperienceRow key={i} exp={exp} index={i} onUpdate={(n) => updateExp(i, n)} isEditMode={isEditMode} />))}
+                        </div>
+                    </div>
+
+                    <DiceModal 
+                        isOpen={diceModal.open} 
+                        onClose={() => setDiceModal({ ...diceModal, open: false })} 
+                        trait={diceModal.trait} 
+                        mod={diceModal.mod} 
+                        experiences={char.experiences} 
+                        currentHope={char.hope.current}
+                        onRoll={handleDiceRollResult}
+                    />
+
+                    <WeaponSwapModal 
+                        isOpen={swapModal.open}
+                        onClose={() => setSwapModal({open: false, newWeapon: null})}
+                        newWeapon={swapModal.newWeapon}
+                        activeWeapons={activeWeapons}
+                        onSelect={finalizeSwap}
+                    />
+                </div>
+            );
+        };
+
+        const SlotManager = ({ slots, onSelect, onDelete, onCreate }) => (
+            <div className="p-4 max-w-md mx-auto min-h-screen flex flex-col justify-center">
+                <h1 className="text-4xl font-cinzel text-center text-[#ca8a04] mb-2">Daggerheart</h1>
+                <h2 className="text-xs text-center text-gray-500 mb-8 uppercase tracking-widest">Mobile Companion</h2>
+                <div className="space-y-4">
+                    {slots.map((s, i) => (
+                        <div key={i} className={`border rounded-lg p-4 flex justify-between items-center cursor-pointer transition-all ${s ? 'bg-[#1e1e1e] border-[#3f3f46] hover:border-[#ca8a04]' : 'bg-transparent border-dashed border-[#525252] hover:bg-[#1e1e1e]'}`} 
+                             onClick={() => !s ? onCreate(i) : onSelect(i)}>
+                            <div>
+                                <div className="text-[10px] text-gray-500 uppercase font-bold">Slot {i+1}</div>
+                                {s ? (
+                                    <div>
+                                        <div className="text-xl font-bold text-white font-cinzel">{s.name}</div>
+                                        <div className="text-xs text-[#ca8a04]">{s.classes[0].name} Lv. {s.classes.reduce((acc,c)=>acc+(parseInt(c.level)||0),0)}</div>
+                                    </div>
+                                ) : <div className="text-gray-400 italic font-bold">+ Crea Nuovo Personaggio</div>}
+                            </div>
+                            {s && <button onClick={(e) => {e.stopPropagation(); if(confirm('Sei sicuro di voler eliminare questo personaggio?')) onDelete(i);}} className="text-gray-500 hover:text-red-500 font-bold px-3 py-2 text-xl">×</button>}
+                        </div>
+                    ))}
+                </div>
+                <div className="mt-8 text-center text-[10px] text-gray-600">I dati sono salvati nel browser locale.</div>
+            </div>
+        );
+
+        const App = () => {
+            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v13') || '[null,null,null,null,null]'));
+            const [active, setActive] = useState(null);
+
+            useEffect(() => localStorage.setItem('dh_mobile_v13', JSON.stringify(slots)), [slots]);
+
+            const save = (c) => { const ns = [...slots]; ns[active] = c; setSlots(ns); };
+            const create = (i) => { const ns = [...slots]; ns[i] = JSON.parse(JSON.stringify(DEFAULT_CHAR)); setSlots(ns); setActive(i); };
+
+            return active !== null ? 
+                <CharacterSheet data={slots[active]} onSave={save} onBack={() => setActive(null)} /> : 
+                <SlotManager slots={slots} onSelect={setActive} onCreate={create} onDelete={i => {const ns=[...slots]; ns[i]=null; setSlots(ns);}} />;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
