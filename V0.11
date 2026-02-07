@@ -1,0 +1,2141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daggerheart - Scheda Personaggio</title>
+    
+    <!-- Librerie React e Tailwind -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --bg-dark: #121212; 
+            --bg-panel: #1e1e1e; 
+            --border-color: #3f3f46; 
+            --gold: #ca8a04; 
+            --red: #991b1b; 
+            --text-main: #e4e4e7; 
+        }
+
+        body { 
+            font-family: 'Lato', sans-serif; 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+            overscroll-behavior-y: none; 
+            user-select: none; 
+        }
+
+        h1, h2, h3, .font-cinzel { font-family: 'Cinzel', serif; }
+        
+        /* Utility Classes */
+        .pip-container { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+        .pip { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #525252; background: transparent; transition: all 0.2s ease; cursor: pointer; }
+        .pip.active { background-color: var(--text-main); border-color: var(--text-main); box-shadow: 0 0 4px rgba(255,255,255,0.5); }
+        .pip.hp.active { background-color: #ef4444; border-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        .pip.stress.active { background-color: #d8b4fe; border-color: #d8b4fe; box-shadow: 0 0 6px #d8b4fe; }
+        .pip.hope.active { background-color: #facc15; border-color: #facc15; box-shadow: 0 0 6px #facc15; }
+        .pip.armor.active { background-color: #60a5fa; border-color: #60a5fa; box-shadow: 0 0 6px #60a5fa; }
+        .pip.gold-chest.active { background-color: #fbbf24; border-color: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+        .pip.gold.active { background-color: #fbbf24; border-color: #fbbf24; }
+        .pip.proficiency.active { background-color: #10b981; border-color: #10b981; box-shadow: 0 0 6px #10b981; }
+
+        .dh-panel { background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px; position: relative; }
+        .dh-input { background: #27272a; border: 1px solid #3f3f46; color: white; padding: 8px; border-radius: 4px; width: 100%; font-size: 1rem; transition: all 0.2s; }
+        .dh-input.read-only { background: transparent; border: 1px solid transparent; padding: 0; color: var(--gold); font-weight: bold; pointer-events: none; }
+        .dh-input.read-only.text-white-override { color: white; } 
+        .dh-input:focus { outline: none; border-color: var(--gold); }
+        
+        select.dh-input { 
+            -webkit-appearance: none; 
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); 
+            background-repeat: no-repeat; 
+            background-position: right 0.5rem center; 
+            background-size: 1em; 
+            padding-right: 2rem; 
+        }
+        select.dh-input.read-only { 
+            background-image: none; 
+            padding-right: 0; 
+            appearance: none; 
+        }
+        
+        option {
+            background-color: #1e1e1e;
+            color: #e4e4e7;
+        }
+
+        .stat-box { display: flex; flex-direction: column; align-items: center; background: #27272a; border: 1px solid #3f3f46; border-radius: 6px; padding: 8px 4px; cursor: pointer; position: relative; transition: border-color 0.2s; }
+        .stat-val-display { font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.5rem; text-align: center; width: 40px; }
+        .stat-arrow { color: #71717a; padding: 2px 8px; cursor: pointer; font-size: 0.8rem; user-select: none; }
+        
+        .char-portrait-container { 
+            position: relative; 
+            width: 210px; 
+            height: 210px; 
+            margin: 0 auto 16px auto; 
+        }
+        
+        .char-portrait { 
+            width: 100%; 
+            height: 100%; 
+            border: 3px solid var(--gold); 
+            object-fit: cover; 
+            display: block; 
+            background: #27272a; 
+            cursor: pointer; 
+            border-radius: 4px; 
+        }
+        
+        .level-rank-container {
+            position: absolute;
+            top: 20px;
+            right: -70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 60px;
+            z-index: 10;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .level-rank-container:active { transform: scale(0.95); }
+
+        .level-badge-circle {
+            width: 50px;
+            height: 50px;
+            background-color: #1e1e1e;
+            border: 2px solid var(--gold);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--gold);
+            font-family: 'Cinzel', serif;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+            margin-bottom: 4px;
+            transition: all 0.2s;
+        }
+        .level-badge-circle:hover {
+            box-shadow: 0 0 15px rgba(202, 138, 4, 0.4);
+            border-color: #fde047;
+        }
+
+        .rank-text {
+            font-family: 'Cinzel', serif;
+            font-size: 0.7rem;
+            color: #ca8a04;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 0 1px 2px black;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .editing .dh-input { border-color: #525252; background: #27272a; pointer-events: auto; }
+        .playing .dh-input { border-color: transparent; background: transparent; pointer-events: none; }
+        
+        /* Force interactivity for local-editing elements even in playing mode */
+        .playing .local-editing .dh-input,
+        .playing .local-editing select, 
+        .playing .local-editing textarea { 
+            pointer-events: auto !important; 
+            border-color: #3f3f46 !important; 
+            background: #27272a !important; 
+        }
+
+        .playing .edit-only { display: none !important; }
+        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 6000; padding: 20px; backdrop-filter: blur(4px); }
+        .dice-result { font-family: 'Cinzel', serif; animation: popIn 0.3s ease-out; }
+        
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes resultPulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(255,255,255,0.2); } 100% { transform: scale(1); } }
+        
+        .result-box-large {
+            padding: 16px;
+            width: 100%;
+            text-align: center;
+            border-radius: 8px;
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 10px;
+            animation: resultPulse 2s infinite ease-in-out;
+            border-width: 2px;
+        }
+
+        .mode-btn { flex: 1; padding: 8px; text-align: center; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; cursor: pointer; border: 1px solid #3f3f46; transition: all 0.2s; }
+        .mode-btn:first-child { border-radius: 6px 0 0 6px; }
+        .mode-btn:last-child { border-radius: 0 6px 6px 0; }
+        .mode-btn.active-normal { background-color: #3f3f46; color: white; border-color: #52525b; }
+        .mode-btn.active-adv { background-color: #15803d; color: white; border-color: #16a34a; }
+        .mode-btn.active-dis { background-color: #b91c1c; color: white; border-color: #dc2626; }
+
+        .die-box { width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 2.5rem; font-weight: bold; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .die-hope { background-color: #f3f4f6; color: #000; border: 3px solid #d1d5db; }
+        .die-fear { background-color: #111827; color: #fff; border: 3px solid #374151; }
+        
+        .weapon-swap-btn {
+            background-color: #27272a; border: 1px solid #3f3f46; color: #ca8a04;
+            text-transform: uppercase; font-size: 0.7rem; padding: 4px 8px;
+            border-radius: 4px; font-weight: bold; cursor: pointer;
+            margin-top: 8px; width: 100%; transition: all 0.2s;
+        }
+        .weapon-swap-btn:hover { background-color: #3f3f46; color: white; }
+
+        .short-rest-btn {
+            background-color: #27272a; border: 1px solid #3f3f46; color: #a1a1aa;
+            padding: 8px; border-radius: 6px; text-align: center; cursor: pointer;
+            transition: all 0.2s; border-left: 4px solid transparent;
+        }
+        .short-rest-btn.selected { background-color: #3f3f46; color: white; border-color: var(--gold); border-left-color: var(--gold); }
+        .short-rest-btn:hover { background-color: #3f3f46; }
+        .short-rest-btn:disabled { opacity: 0.5; cursor: not-allowed; hover: none; border-color: #3f3f46; color: #52525b; }
+        
+        @keyframes pulse-gold-btn { 
+            0% { box-shadow: 0 0 0 0 rgba(202, 138, 4, 0.7); transform: scale(1); } 
+            50% { box-shadow: 0 0 10px 4px rgba(202, 138, 4, 0.5); transform: scale(1.02); } 
+            100% { box-shadow: 0 0 0 0 rgba(202, 138, 4, 0); transform: scale(1); } 
+        }
+        .crit-btn { 
+            animation: pulse-gold-btn 1.5s infinite !important; 
+            background-color: #ca8a04 !important; 
+            color: black !important; 
+            border: 2px solid white !important; 
+            font-weight: 800 !important;
+        }
+
+        /* --- STILI SPECIFICI PER MODALITÀ MODIFICA (BIANCO) --- */
+        .editing .text-\[\#ca8a04\], 
+        .editing .text-red-400, 
+        .editing .text-red-500, 
+        .editing .text-blue-400, 
+        .editing .text-blue-500,
+        .editing .text-purple-400, 
+        .editing .text-purple-500,
+        .editing .text-yellow-400,
+        .editing .text-emerald-400,
+        .editing h1:not(.header-title), 
+        .editing h2, 
+        .editing h3, 
+        .editing h4, 
+        .editing label {
+            color: white !important;
+        }
+
+        /* Titolo Principale in Modifica rimane Oro */
+        .header-title {
+            color: #ca8a04 !important;
+        }
+
+        /* Bordi Bianchi in Modifica */
+        .editing [class*="border-[#ca8a04]"],
+        .editing [class*="border-red-"],
+        .editing [class*="border-blue-"],
+        .editing [class*="border-gray-"],
+        .editing [class*="border-yellow-"],
+        .editing .char-portrait,
+        .editing .level-badge-circle,
+        .editing .dh-panel {
+            border-color: white !important;
+        }
+        
+        /* Livello e Rango in Modifica: Bordo e Testo Bianco */
+        .editing .level-badge-circle {
+            border-color: white !important;
+            color: white !important;
+        }
+        .editing .rank-text {
+            color: white !important;
+        }
+
+        /* Pip Bianchi in Modifica */
+        .editing .pip.active {
+            background-color: white !important;
+            border-color: white !important;
+            box-shadow: 0 0 4px white !important;
+        }
+        
+        /* Input valori numerici (statistiche) in Modifica */
+        .editing input.text-yellow-400,
+        .editing input.text-emerald-400 {
+            color: white !important;
+        }
+        
+        /* Scritta Forgia in bianco in modalità modifica */
+        .editing .forge-submit-btn {
+            color: white !important;
+        }
+        
+        /* 3D Transform Classes */
+        .transform-style-3d {
+            transform-style: preserve-3d;
+        }
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // --- ICONS ---
+        const IconHome = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        );
+        const IconLockClosed = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        );
+        const IconLockOpen = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+        );
+        const IconArrowLeft = () => (
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        );
+        const IconArrowRight = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        );
+        const IconPlus = () => (
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        );
+        const IconTrash = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        );
+        const IconSave = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        );
+        const IconBook = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        );
+
+
+        // --- COSTANTI ---
+        const TRAITS = { agility: "Agilità", strength: "Forza", finesse: "Finezza", instinct: "Istinto", presence: "Presenza", knowledge: "Conoscenza" };
+        const TRAIT_SKILLS = {
+            agility: "Scatto, Balzo, Manovra", strength: "Sollevare, Fracassare, Lottare", finesse: "Controllare, Nascondersi, Armeggiare",
+            instinct: "Percepire, Intuire, Orientarsi", presence: "Affascinare, Esibirsi, Ingannare", knowledge: "Rammentare, Analizzare, Compr."
+        };
+        const DICE = ["d4", "d6", "d8", "d10", "d12", "d20"];
+        
+        // Liste Opzioni
+        const HERITAGE_LIST = [
+            "Clank", "Drakona", "Dwarf", "Elf", "Faerie", "Faun", "Firbolg", 
+            "Fungril", "Galapa", "Giant", "Goblin", "Halfling", "Human", 
+            "Infernis", "Katari", "Orc", "Ribbet", "Simiah"
+        ];
+        
+        const COMMUNITY_LIST = [
+            "Highborne", "Loreborne", "Orderborne", "Ridgeborne", 
+            "Seaborne", "Slyborne", "Underborne", "Wanderborne", "Wildborne"
+        ];
+
+        const POTION_TYPES = [
+            { id: "hp", label: "Punti Ferita", color: "text-red-500" },
+            { id: "stress", label: "Stress", color: "text-purple-500" },
+            { id: "hope", label: "Speranza", color: "text-yellow-400" }
+        ];
+
+        const CLASS_CONFIG = {
+            "Druido": { spellcast: "Istinto", domains: ["Saggio", "Arcano"], subclasses: ["Warden of the Elements", "Warden of Renewal"] },
+            "Bardo": { spellcast: "Presenza", domains: ["Grazia", "Codice"], subclasses: ["Troubadour", "Wordsmith"] },
+            "Guardiano": { spellcast: "-", domains: ["Valore", "Lama"], subclasses: ["Stalwart", "Vengeance"] },
+            "Guerriero": { spellcast: "-", domains: ["Lama", "Ossa"], subclasses: ["Call of the Slayer", "Call of the Brave"] },
+            "Ladro": { spellcast: "Finezza", domains: ["Tenebra", "Grazia"], subclasses: ["Nightwalker", "Syndicate"] },
+            "Mago": { spellcast: "Conoscenza", domains: ["Codice", "Splendore"], subclasses: ["School of Knowledge", "School of War"] },
+            "Ranger": { spellcast: "Agilità", domains: ["Ossa", "Saggio"], subclasses: ["Beastbound", "Wayfinder"] },
+            "Serafino": { spellcast: "Forza", domains: ["Splendore", "Valore"], subclasses: ["Winged Sentinel", "Divine Wielder"] }
+        };
+        
+        const DOMAINS_LIST = ["Arcana", "Blade", "Bone", "Codex", "Grace", "Midnight", "Sage", "Splendor", "Valor"];
+
+        const CLASSES_LIST = Object.keys(CLASS_CONFIG);
+        const DEFAULT_WEAPON = { id: 0, name: "", trait: "agility", range: "Mischia", grip: "Una mano", activeSlot: "none", damageRows: [{ count: 1, die: "d8", mod: 0, mod2: 0, type: "fis" }], ammo: "" };
+
+        const DEFAULT_CHAR = {
+            name: "Eroe", playerName: "", 
+            classes: [{ name: "", subclass: "", level: 1 }], 
+            heritage: "", community: "", proficiency: 1, charImg: null,
+            traits: { agility: 0, strength: 0, finesse: 0, instinct: 0, presence: 0, knowledge: 0 },
+            evasion: 10, armorScore: 0,
+            activeArmor: { name: "Armatura Base", baseThresholds: "5 / 10 / 15", baseScore: 1, traits: "Leggera", feature: "" },
+            thresholds: { minor: 6, major: 12 },
+            hp: { current: 0, max: 6 }, stress: { current: 0, max: 6 }, hope: { current: 2, max: 6, specialAbility: { text: "", cost: 1 } }, armorSlots: { current: 0, max: 6 },
+            experiences: Array(5).fill({ text: "", mod: 0, cost: 1 }),
+            gold: { handfuls: 0, bags: 0, chests: 0 },
+            classFeature: "", deck: [], 
+            weapons: [], 
+            potions: [],
+            inventory: "", potions: [], notes: "",
+            proficiency: { current: 1, max: 6 }
+        };
+
+        const DEFAULT_CARDS = {
+            heritages: [],
+            communities: [],
+            classes: [],
+            subclasses: {}, 
+            domains: {}
+        };
+
+        const getRank = (level) => {
+            return 1; 
+        };
+
+        const compressImage = (file) => new Promise((resolve) => {
+            const reader = new FileReader(); reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image(); img.src = e.target.result;
+                img.onload = () => {
+                    const cvs = document.createElement('canvas');
+                    const scale = 500 / img.width; cvs.width = 500; cvs.height = img.height * scale;
+                    cvs.getContext('2d').drawImage(img, 0, 0, cvs.width, cvs.height);
+                    resolve(cvs.toDataURL('image/jpeg', 0.7));
+                };
+            };
+        });
+
+        // --- COMPONENTI UI BASE ---
+
+        const PipTracker = ({ total, current, onChange, type }) => {
+            const safeTotal = Math.max(0, parseInt(total) || 0);
+            return (
+                <div className="pip-container">
+                    {[...Array(safeTotal)].map((_, i) => (
+                        <div key={i} onClick={() => onChange && onChange((i === 0 && current === 1) ? 0 : (i + 1 === current ? current - 1 : i + 1))} 
+                             className={`pip ${type} ${i < current ? 'active' : ''}`}></div>
+                    ))}
+                </div>
+            );
+        };
+        
+        const StatBox = ({ label, value, skillText, statKey, onClick, onChange, isEditMode }) => (
+            <div className={`stat-box ${!isEditMode ? 'hover:border-[#ca8a04]' : ''}`} onClick={onClick}>
+                <span className="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-1">{label}</span>
+                <div className="flex items-center justify-center w-full gap-2">
+                    {isEditMode && <div onClick={(e)=>{e.stopPropagation(); if(value>-10) onChange(statKey, parseInt(value)-1)}} className="stat-arrow text-2xl">▼</div>}
+                    <div className={`stat-val-display ${!isEditMode ? 'text-[#ca8a04]' : 'text-white'}`}>{value}</div>
+                    {isEditMode && <div onClick={(e)=>{e.stopPropagation(); if(value<10) onChange(statKey, parseInt(value)+1)}} className="stat-arrow text-2xl">▲</div>}
+                </div>
+                <span className="text-[9px] text-center text-gray-500 leading-tight mt-1 px-1">{skillText}</span>
+            </div>
+        );
+
+        const ExperienceRow = ({ exp, index, onUpdate, isEditMode }) => {
+            const update = (field, val) => { const n = {...exp, [field]: val}; onUpdate(n); };
+            return (
+                <div className="flex items-center gap-2 mb-2 bg-[#27272a] p-1 rounded border border-[#3f3f46]">
+                    <input value={exp.text} onChange={(e) => update('text', e.target.value)} 
+                           className={`bg-transparent text-sm text-gray-200 flex-1 px-2 focus:outline-none ${!isEditMode ? 'pointer-events-none' : ''}`} placeholder="Esperienza..." />
+                    <div className="flex items-center border-l border-[#525252] pl-2">
+                        {isEditMode && <div onClick={() => exp.mod > -10 && update('mod', exp.mod - 1)} className="stat-arrow text-xs cursor-pointer px-1">▼</div>}
+                        <div className={`text-sm font-bold w-6 text-center ${exp.mod === 0 ? 'text-gray-600' : 'text-[#ca8a04]'}`}>{exp.mod > 0 ? '+'+exp.mod : exp.mod}</div>
+                        {isEditMode && <div onClick={() => exp.mod < 10 && update('mod', exp.mod + 1)} className="stat-arrow text-xs cursor-pointer px-1">▲</div>}
+                    </div>
+                    <div className="flex items-center border-l border-[#525252] pl-2 ml-1">
+                        <span className="text-[8px] text-yellow-600 uppercase mr-1">Costo</span>
+                        {isEditMode && <div onClick={() => exp.cost > 1 && update('cost', exp.cost - 1)} className="stat-arrow text-xs cursor-pointer px-1">▼</div>}
+                        <div className="text-xs font-bold text-yellow-500 w-4 text-center">{exp.cost || 1}</div>
+                        {isEditMode && <div onClick={() => exp.cost < 5 && update('cost', exp.cost + 1)} className="stat-arrow text-xs cursor-pointer px-1">▲</div>}
+                        {!isEditMode && <span className="text-[8px] text-yellow-600 ml-1">SP</span>}
+                    </div>
+                </div>
+            );
+        };
+
+        const LevelUpModal = ({ isOpen, onClose, currentLevel, onConfirm }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-[#ca8a04] w-full max-w-sm rounded-lg p-5 shadow-2xl text-center" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-xl text-[#ca8a04] mb-4">Avanzamento di Livello</h2>
+                        <p className="text-white mb-6">Passare al livello <span className="font-bold text-xl">{currentLevel + 1}</span>?</p>
+                        <div className="flex gap-4 justify-center">
+                            <button onClick={onClose} className="px-4 py-2 border border-gray-600 text-gray-400 rounded hover:text-white">Annulla</button>
+                            <button onClick={onConfirm} className="px-4 py-2 bg-[#ca8a04] text-black font-bold rounded hover:bg-[#a16207]">Conferma</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ResultModal = ({ isOpen, onClose, total, detail, title }) => {
+            if (!isOpen) return null;
+            return (
+                 <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-red-900 w-full max-w-sm rounded-lg p-5 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-xl text-white mb-1">{title}</h2>
+                        <div className="text-6xl font-cinzel text-white my-4">{total}</div>
+                        <div className="text-xs text-gray-400 mb-4 font-mono">{detail}</div>
+                        <button onClick={onClose} className="w-full py-2 bg-gray-800 rounded text-gray-300">Chiudi</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const PotionCard = ({ potion, onChange, isEditMode, onUse }) => {
+            const update = (f, v) => onChange({...potion, [f]: v});
+            const invCount = potion.inventoryCount !== undefined ? potion.inventoryCount : 1;
+
+            return (
+                <div className={`bg-[#18181b] border border-[#3f3f46] rounded p-2 mb-2 relative ${isEditMode ? 'pt-8' : ''}`}>
+                    {isEditMode ? (
+                        <>
+                             <button onClick={() => onChange(null)} className="absolute top-2 right-2 text-red-500 font-bold px-2 py-0.5 text-xs hover:text-red-400 border border-red-900 rounded bg-[#1e1e1e]">X</button>
+                            
+                            <div className="mb-2">
+                                <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1">Nome Pozione</label>
+                                <input value={potion.name} onChange={e => update('name', e.target.value)} className="dh-input text-sm font-bold py-1 w-full" placeholder="Es. Pozione di Cura" />
+                            </div>
+                            
+                            <div className="grid grid-cols-4 gap-2">
+                                <div>
+                                    <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1">Dadi</label>
+                                    <input type="number" value={potion.count} onChange={e => update('count', parseInt(e.target.value) || 1)} className="dh-input text-xs py-1 text-center" />
+                                </div>
+                                <div>
+                                    <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1">Dado</label>
+                                    <select value={potion.die} onChange={e => update('die', e.target.value)} className="dh-input text-xs py-1 appearance-none">
+                                        {DICE.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1">Effetto</label>
+                                    <select value={potion.type} onChange={e => update('type', e.target.value)} className="dh-input text-xs py-1 appearance-none">
+                                        {POTION_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                                    </select>
+                                </div>
+                                 <div>
+                                    <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1">Qtà Inv.</label>
+                                    <input type="number" value={invCount} onChange={e => update('inventoryCount', parseInt(e.target.value) || 0)} className="dh-input text-xs py-1 text-center" />
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <div className="font-bold text-white text-sm">{potion.name || "Pozione"}</div>
+                                <div className="text-xs text-gray-400">{potion.count}{potion.die} {POTION_TYPES.find(t=>t.id===potion.type)?.label}</div>
+                            </div>
+                             <div className="flex items-center gap-2">
+                                 <div className="flex items-center bg-[#121212] px-2 py-0.5 rounded border border-[#3f3f46]">
+                                    <button onClick={() => update('inventoryCount', Math.max(0, invCount - 1))} className="text-gray-400 hover:text-white font-bold px-1">-</button>
+                                    <span className="text-white font-bold text-sm mx-1">{invCount}</span>
+                                    <button onClick={() => update('inventoryCount', invCount + 1)} className="text-gray-400 hover:text-white font-bold px-1">+</button>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        if(invCount > 0) {
+                                            onUse();
+                                            update('inventoryCount', invCount - 1);
+                                        }
+                                    }} 
+                                    disabled={invCount <= 0}
+                                    className={`py-1 px-3 rounded text-xs font-bold uppercase ${invCount > 0 ? 'bg-[#ca8a04] text-black hover:bg-[#a16207]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                                >
+                                    USA
+                                </button>
+                             </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const ShortRestModal = ({ isOpen, onClose, rank, onConfirm }) => {
+            const [step, setStep] = useState('type-selection'); 
+            const [restType, setRestType] = useState(null); 
+            const [selections, setSelections] = useState([]);
+            const [prepareWithAllies, setPrepareWithAllies] = useState(false);
+            const [results, setResults] = useState(null);
+
+            useEffect(() => {
+                if (isOpen) {
+                    setStep('type-selection');
+                    setRestType(null);
+                    setSelections([]);
+                    setPrepareWithAllies(false);
+                    setResults(null);
+                }
+            }, [isOpen]);
+
+            if (!isOpen) return null;
+
+            const addSelection = (action) => {
+                if (selections.length < 2) {
+                    setSelections([...selections, action]);
+                }
+            };
+
+            const removeSelection = (index) => {
+                const newSel = [...selections];
+                newSel.splice(index, 1);
+                setSelections(newSel);
+            };
+
+            const handleConfirm = () => {
+                const rolledResults = selections.map(action => {
+                    if (action === 'prepare') {
+                        return { action, value: prepareWithAllies ? 2 : 1, text: "Preparazione" };
+                    }
+                    const roll = Math.floor(Math.random() * 4) + 1;
+                    const total = roll + rank;
+                    let text = "";
+                    if (action === 'hp') text = "Punti Ferita";
+                    if (action === 'stress') text = "Stress";
+                    if (action === 'armor') text = "Armatura";
+                    
+                    return { action, value: total, roll, rank, text };
+                });
+                
+                setResults(rolledResults);
+                setStep('results');
+                
+                if (restType === 'personal') {
+                     onConfirm(rolledResults);
+                }
+            };
+
+            const OPTIONS_PERSONAL = [
+                { id: 'hp', label: `Recupera Punti Ferita (1d4 + ${rank})` },
+                { id: 'stress', label: `Recupera Stress (1d4 + ${rank})` },
+                { id: 'armor', label: `Ripara Armatura (1d4 + ${rank})` },
+                { id: 'prepare', label: `Prepararsi (Guadagna Speranza)` }
+            ];
+
+            const OPTIONS_ALLY = [
+                { id: 'hp', label: `Cura Punti Ferita Alleato (1d4 + ${rank})` },
+                { id: 'armor', label: `Ripara Armatura Alleato (1d4 + ${rank})` }
+            ];
+            
+            const currentOptions = restType === 'personal' ? OPTIONS_PERSONAL : OPTIONS_ALLY;
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-[#ca8a04] w-full max-w-sm rounded-lg p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-xl text-[#ca8a04] mb-4 text-center">Riposo Breve</h2>
+                        
+                        {step === 'type-selection' && (
+                            <div className="flex flex-col gap-3">
+                                <button onClick={() => { setRestType('personal'); setStep('action-selection'); }} className="short-rest-btn hover:border-[#ca8a04] text-white">Riposo Personale</button>
+                                <button onClick={() => { setRestType('ally'); setStep('action-selection'); }} className="short-rest-btn hover:border-[#ca8a04] text-white">Aiuta un Alleato</button>
+                            </div>
+                        )}
+
+                        {step === 'action-selection' && (
+                            <div className="flex flex-col gap-3">
+                                <div className="text-sm text-gray-400 text-center mb-2">Scegli 2 azioni da eseguire:</div>
+                                
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                    <div className="border border-gray-600 rounded p-2 text-center min-h-[40px] flex items-center justify-center cursor-pointer hover:bg-red-900/20" onClick={() => selections[0] && removeSelection(0)}>
+                                        {selections[0] ? currentOptions.find(o => o.id === selections[0]).label.split('(')[0] : <span className="text-gray-600">Slot 1</span>}
+                                    </div>
+                                    <div className="border border-gray-600 rounded p-2 text-center min-h-[40px] flex items-center justify-center cursor-pointer hover:bg-red-900/20" onClick={() => selections[1] && removeSelection(1)}>
+                                        {selections[1] ? currentOptions.find(o => o.id === selections[1]).label.split('(')[0] : <span className="text-gray-600">Slot 2</span>}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    {currentOptions.map(opt => (
+                                        <button key={opt.id} onClick={() => addSelection(opt.id)} disabled={selections.length >= 2} className={`w-full text-left text-xs p-2 rounded border border-[#3f3f46] ${selections.length >= 2 ? 'opacity-50' : 'hover:bg-[#27272a] hover:border-gray-500'} text-gray-300`}>
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {restType === 'personal' && selections.includes('prepare') && (
+                                    <div className="flex items-center justify-between bg-[#27272a] p-2 rounded border border-blue-900">
+                                        <span className="text-xs text-blue-300">Prepararsi con alleati?</span>
+                                        <button onClick={() => setPrepareWithAllies(!prepareWithAllies)} className={`w-10 h-6 rounded-full relative transition-colors ${prepareWithAllies ? 'bg-blue-600' : 'bg-gray-600'}`}>
+                                            <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${prepareWithAllies ? 'translate-x-4' : ''}`}></div>
+                                        </button>
+                                    </div>
+                                )}
+
+                                <button onClick={handleConfirm} disabled={selections.length !== 2} className={`w-full py-2 mt-2 font-bold uppercase rounded ${selections.length === 2 ? 'bg-[#ca8a04] text-black' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>
+                                    Conferma
+                                </button>
+                            </div>
+                        )}
+
+                        {step === 'results' && (
+                            <div className="text-center">
+                                <h3 className="text-white font-bold mb-3">{restType === 'personal' ? 'Risultati Applicati' : 'Risultati da Comunicare'}</h3>
+                                <div className="space-y-3 mb-4">
+                                    {results.map((res, i) => {
+                                        let colorClass = "text-white";
+                                        let sign = "-"; 
+                                        if (res.action === 'hp') colorClass = "text-red-500";
+                                        if (res.action === 'stress') colorClass = "text-purple-500";
+                                        if (res.action === 'armor') colorClass = "text-blue-400";
+                                        if (res.action === 'prepare') {
+                                            colorClass = "text-yellow-400";
+                                            sign = "+";
+                                        }
+
+                                        return (
+                                            <div key={i} className="bg-[#27272a] p-3 rounded border border-[#3f3f46] flex flex-col items-center">
+                                                <div className="text-xs text-gray-400 uppercase font-bold mb-1">{res.text}</div>
+                                                
+                                                <div className={`text-4xl font-cinzel font-bold ${colorClass}`}>
+                                                    {sign}{res.value}
+                                                </div>
+                                                
+                                                <div className="text-[10px] text-gray-500 mt-1">
+                                                    {res.action === 'prepare' 
+                                                        ? (res.value === 2 ? "(Con Alleati)" : "(Standard)")
+                                                        : `(1d4: ${res.roll} + Rango: ${res.rank})`
+                                                    }
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <button onClick={onClose} className="text-gray-500 text-xs underline">Chiudi</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const DiceModal = ({ isOpen, onClose, trait, mod, experiences, currentHope, onRoll }) => {
+            const [selectedExps, setSelectedExps] = useState([]);
+            const [rollResult, setRollResult] = useState(null);
+            const [rollMode, setRollMode] = useState('normal'); 
+            const [extraBonus, setExtraBonus] = useState(0);
+            const [isRolling, setIsRolling] = useState(false);
+            const [animDice, setAnimDice] = useState({ d1: 1, d2: 1 });
+
+            useEffect(() => {
+                if (isOpen) {
+                    setSelectedExps([]);
+                    setRollResult(null);
+                    setRollMode('normal');
+                    setExtraBonus(0);
+                    setIsRolling(false);
+                }
+            }, [isOpen]);
+
+            if (!isOpen) return null;
+
+            const toggleExp = (index) => {
+                if (selectedExps.includes(index)) {
+                    setSelectedExps(selectedExps.filter(i => i !== index));
+                } else {
+                    const exp = experiences[index];
+                    const currentCost = selectedExps.reduce((acc, i) => acc + (experiences[i].cost || 1), 0);
+                    if (currentCost + (exp.cost || 1) <= currentHope) {
+                        setSelectedExps([...selectedExps, index]);
+                    }
+                }
+            };
+
+            const calculateTotalCost = () => selectedExps.reduce((acc, i) => acc + (experiences[i].cost || 1), 0);
+            const calculateTotalBonus = () => selectedExps.reduce((acc, i) => acc + (experiences[i].mod || 0), 0);
+
+            const handleRoll = () => {
+                setIsRolling(true);
+                const animInterval = setInterval(() => {
+                    setAnimDice({
+                        d1: Math.floor(Math.random() * 12) + 1,
+                        d2: Math.floor(Math.random() * 12) + 1
+                    });
+                }, 80);
+
+                setTimeout(() => {
+                    clearInterval(animInterval);
+                    const d1 = Math.floor(Math.random() * 12) + 1;
+                    const d2 = Math.floor(Math.random() * 12) + 1;
+                    const d6 = Math.floor(Math.random() * 6) + 1;
+                    
+                    const bonus = calculateTotalBonus();
+                    let modeVal = 0;
+                    if (rollMode === 'adv') modeVal = d6;
+                    if (rollMode === 'dis') modeVal = -d6;
+
+                    const total = d1 + d2 + mod + bonus + modeVal + extraBonus;
+                    const cost = calculateTotalCost();
+                    
+                    const isCrit = d1 === d2;
+                    const isHope = d1 > d2;
+                    
+                    setRollResult({ d1, d2, d6, total, cost, rollMode, extraBonus, isCrit });
+                    setIsRolling(false);
+                    
+                    // Passing more info to parent for auto-updates
+                    if (onRoll) onRoll({ 
+                        cost, 
+                        isHope, 
+                        isCrit,
+                        d1,
+                        d2
+                    });
+                }, 1000); 
+            };
+
+            const totalCost = calculateTotalCost();
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-[#ca8a04] w-full max-w-sm rounded-lg p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-xl text-[#ca8a04] mb-4 text-center">Tiro {trait}</h2>
+                        
+                        {!rollResult && !isRolling ? (
+                            <>
+                                <div className="flex mb-4 bg-[#27272a] rounded p-1">
+                                    <div onClick={() => setRollMode('dis')} className={`mode-btn ${rollMode === 'dis' ? 'active-dis' : 'text-gray-400 hover:bg-[#3f3f46]'}`}>Svantaggio (-1d6)</div>
+                                    <div onClick={() => setRollMode('normal')} className={`mode-btn ${rollMode === 'normal' ? 'active-normal' : 'text-gray-400 hover:bg-[#3f3f46]'}`}>Normale</div>
+                                    <div onClick={() => setRollMode('adv')} className={`mode-btn ${rollMode === 'adv' ? 'active-adv' : 'text-gray-400 hover:bg-[#3f3f46]'}`}>Vantaggio (+1d6)</div>
+                                </div>
+
+                                <div className="text-center text-gray-400 text-sm mb-4">Modificatore Base: <b className="text-white">{mod > 0 ? '+'+mod : mod}</b></div>
+
+                                <div className="mb-4">
+                                    <div className="flex justify-between text-xs text-gray-500 uppercase mb-2 font-bold border-b border-gray-700 pb-1">
+                                        <span>Esperienze Utilizzabili</span>
+                                        <span className={totalCost > 0 ? "text-yellow-500" : ""}>Costo: {totalCost} / {currentHope} SP</span>
+                                    </div>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                                        {experiences.filter(e => e.text).map((exp, i) => {
+                                            const isSelected = selectedExps.includes(i);
+                                            const cost = exp.cost || 1;
+                                            const canAfford = isSelected || (totalCost + cost <= currentHope);
+                                            
+                                            return (
+                                                <div key={i} onClick={() => canAfford && toggleExp(i)} 
+                                                     className={`flex justify-between items-center p-2 rounded border cursor-pointer transition-colors ${isSelected ? 'bg-[#ca8a04] border-[#ca8a04] text-black' : (canAfford ? 'bg-[#27272a] border-[#3f3f46] text-gray-300 hover:border-gray-500' : 'bg-[#27272a] border-[#3f3f46] text-gray-600 opacity-50 cursor-not-allowed')}`}>
+                                                    <span className="text-sm font-bold truncate flex-1">{exp.text}</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="font-bold">{exp.mod > 0 ? '+'+exp.mod : exp.mod}</span>
+                                                        <span className="text-[10px] font-bold border border-current px-1 rounded">{cost} SP</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {experiences.filter(e => e.text).length === 0 && <div className="text-center text-gray-600 italic text-xs">Nessuna esperienza definita</div>}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-center gap-4 mb-4 bg-[#27272a] p-2 rounded">
+                                    <span className="text-xs uppercase text-gray-400 font-bold">Extra Bonus</span>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => extraBonus > -1 && setExtraBonus(extraBonus - 1)} className="w-8 h-8 flex items-center justify-center bg-[#3f3f46] rounded text-white font-bold hover:bg-[#52525b]">-</button>
+                                        <span className={`w-8 text-center font-bold ${extraBonus !== 0 ? 'text-[#ca8a04]' : 'text-gray-500'}`}>{extraBonus > 0 ? '+'+extraBonus : extraBonus}</span>
+                                        <button onClick={() => extraBonus < 10 && setExtraBonus(extraBonus + 1)} className="w-8 h-8 flex items-center justify-center bg-[#3f3f46] rounded text-white font-bold hover:bg-[#52525b]">+</button>
+                                    </div>
+                                </div>
+
+                                <button onClick={handleRoll} className="w-full py-3 bg-[#ca8a04] hover:bg-[#a16207] text-black font-bold rounded text-lg uppercase tracking-wide shadow-lg">Lancia Dadi</button>
+                            </>
+                        ) : (
+                            <div className="text-center py-4">
+                                <div className="flex justify-center gap-6 mb-6">
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-gray-500 uppercase mb-1">Speranza</span>
+                                        <div className="die-box die-hope">
+                                            {isRolling ? animDice.d1 : rollResult.d1}
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-gray-500 uppercase mb-1">Paura</span>
+                                        <div className="die-box die-fear">
+                                            {isRolling ? animDice.d2 : rollResult.d2}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {!isRolling && (
+                                    <>
+                                        {rollResult.rollMode !== 'normal' && (
+                                            <div className={`text-sm font-bold mb-2 ${rollResult.rollMode === 'adv' ? 'text-green-400' : 'text-red-400'}`}>
+                                                {rollResult.rollMode === 'adv' ? 'Vantaggio' : 'Svantaggio'}: {rollResult.rollMode === 'adv' ? '+' : '-'}{rollResult.d6} (d6)
+                                            </div>
+                                        )}
+
+                                        <div className="text-sm text-gray-400 mb-4">
+                                            {rollResult.d1 + rollResult.d2} (2d12) + {mod} (Stat) + {calculateTotalBonus()} (Exp) 
+                                            {rollResult.extraBonus !== 0 && <span> {rollResult.extraBonus > 0 ? '+ ' + rollResult.extraBonus : '- ' + Math.abs(rollResult.extraBonus)} (Extra)</span>}
+                                        </div>
+                                        
+                                        <div className="text-6xl font-cinzel text-[#ca8a04] dice-result mb-4">{rollResult.total}</div>
+                                        
+                                        <div className="flex justify-center">
+                                            {rollResult.d1 === rollResult.d2 ? (
+                                                <div className="result-box-large bg-[#ca8a04] text-black border-white shadow-[0_0_20px_rgba(202,138,4,0.6)]">
+                                                    CRITICO
+                                                </div>
+                                            ) : rollResult.d1 > rollResult.d2 ? (
+                                                <div className="result-box-large bg-white text-black border-gray-300">
+                                                    CON SPERANZA
+                                                </div>
+                                            ) : (
+                                                <div className="result-box-large bg-black text-white border-gray-600">
+                                                    CON PAURA
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {rollResult.cost > 0 && <div className="text-xs text-red-400 mt-2 font-bold">- {rollResult.cost} Speranza</div>}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {!isRolling && <button onClick={onClose} className="mt-4 text-gray-500 text-xs underline w-full text-center">Chiudi</button>}
+                    </div>
+                </div>
+            );
+        };
+
+        const ActiveArmorPanel = ({ armor, onUpdateArmor, isEditMode, slots, onUpdateSlots }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            
+            // Safety check for slots prop
+            const safeSlots = slots || { current: 0, max: 0 };
+            
+            return (
+                <div className="dh-panel border-l-4 border-l-blue-600 bg-[#1e1e1e] relative pt-2"> 
+                    
+                    {/* Armor Slots Section (Always Visible) */}
+                    <div className="mb-4">
+                        <div className="flex justify-between mb-1">
+                             <span className={`text-xs uppercase font-bold ${isEditMode ? 'text-white' : 'text-blue-400'}`}>Slot Armatura</span>
+                             {isEditMode && <input type="number" value={safeSlots.max} onChange={e=>onUpdateSlots('max', parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/>}
+                        </div>
+                        <PipTracker total={Math.min(12, safeSlots.max)} current={safeSlots.current} onChange={v => onUpdateSlots('current', v)} type="armor" />
+                    </div>
+
+                    {/* Separator */}
+                    <hr className="border-[#3f3f46] mb-2" />
+
+                     {/* Header Dropdown */}
+                     <div className="flex items-center justify-between relative mb-2 w-full cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+                        <div className="w-6 text-gray-500 text-xs text-center">{isOpen ? '▼' : '▶'}</div>
+                        <label className={`uppercase font-bold text-center text-xs font-bold uppercase tracking-wider font-cinzel cursor-pointer ${isEditMode ? 'text-white' : 'text-[#ca8a04]'}`}>
+                            ARMATURA ATTIVA
+                        </label>
+                        <div className="w-6"></div>
+                    </div>
+
+                    {isOpen && (
+                        isEditMode ? (
+                            <>
+                                {/* Row 1: Name */}
+                                <div className="mb-3">
+                                    <textarea
+                                        value={armor.name}
+                                        onChange={e => onUpdateArmor('name', e.target.value)}
+                                        className="dh-input font-bold w-full text-lg resize-none h-10 text-center"
+                                        placeholder="Nome Armatura"
+                                    />
+                                </div>
+
+                                {/* Row 2: Score & Thresholds */}
+                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                    <div>
+                                        <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1 text-center">PUNTI BASE</label>
+                                        <select 
+                                            value={armor.baseScore} 
+                                            onChange={e => onUpdateArmor('baseScore', parseInt(e.target.value))} 
+                                            className="dh-input text-sm py-1 w-full appearance-none text-center"
+                                        >
+                                            {[...Array(15)].map((_, i) => <option key={i} value={i}>{i}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1 text-center">SOGLIE BASE</label>
+                                        <input 
+                                            value={armor.baseThresholds} 
+                                            onChange={e => onUpdateArmor('baseThresholds', e.target.value)} 
+                                            className="dh-input text-sm py-1 w-full text-center" 
+                                            placeholder="es. 5 / 10 / 15" 
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Row 3: Traits */}
+                                <div className="mb-3">
+                                     <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1 text-center">CARATTERISTICHE</label>
+                                     <input 
+                                        value={armor.traits} 
+                                        onChange={e => onUpdateArmor('traits', e.target.value)} 
+                                        className="dh-input text-sm py-1 w-full text-center"
+                                        placeholder="Caratteristiche armatura" 
+                                    />
+                                </div>
+
+                                {/* Row 4: Feature */}
+                                <div>
+                                    <label className="text-[9px] text-gray-500 uppercase font-bold block mb-1 text-center">PECULIARITÀ</label>
+                                    <textarea 
+                                        value={armor.feature} 
+                                        onChange={e => onUpdateArmor('feature', e.target.value)} 
+                                        className="dh-input text-xs h-16 w-full" 
+                                        placeholder="Descrivi peculiarità..." 
+                                    />
+                                </div>
+                            </>
+                        ) : (
+                            /* View Mode */
+                            <>
+                                {/* Row 1: Name */}
+                                <div className="text-center mb-4">
+                                    <div className="text-white font-bold text-xl font-cinzel mb-1 leading-tight">
+                                        {armor.name || "Nessuna Armatura"}
+                                    </div>
+                                    
+                                     {/* Row 2: Score & Thresholds */}
+                                    <div className="flex justify-center gap-4 text-xs text-gray-400 font-bold uppercase tracking-widest mt-2">
+                                        <span>Punti: <span className="text-white text-sm">{armor.baseScore}</span></span>
+                                        <span className="text-blue-500">•</span>
+                                        <span>Soglie: <span className="text-white text-sm text-white-override">{armor.baseThresholds}</span></span>
+                                    </div>
+                                </div>
+
+                                {/* Row 3: Traits */}
+                                <div className="text-center text-xs text-white mb-3 italic text-white-override">
+                                    {armor.traits || "-"}
+                                </div>
+
+                                {/* Row 4: Feature */}
+                                <div className="text-xs text-gray-400 text-center font-mono bg-[#121212] p-2 rounded border border-[#3f3f46]">
+                                     {armor.feature || "Nessuna peculiarità"}
+                                </div>
+                            </>
+                        )
+                    )}
+                </div>
+            );
+        };
+
+        const InventoryPanel = ({ inventory, onUpdate, isEditMode, potions, onUpdatePotions, onUsePotion }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const [isPotionsOpen, setIsPotionsOpen] = useState(false);
+            const [resultModal, setResultModal] = useState({ open: false, total: 0, detail: '', title: '' });
+
+            const addPotion = () => { onUpdatePotions([...potions, { id: Date.now(), name: "", count: 1, die: "d4", type: "hp" }]); };
+            const removePotion = (id) => { onUpdatePotions(potions.filter(p => p.id !== id)); };
+            const updatePotion = (id, newPotion) => { onUpdatePotions(potions.map(p => p.id === id ? newPotion : p)); };
+            const handleUsePotion = (p) => {
+                 let total = 0;
+                 let rolls = [];
+                 for(let i=0; i<p.count; i++) {
+                     let r = Math.floor(Math.random() * parseInt(p.die.slice(1))) + 1;
+                     total += r;
+                     rolls.push(r);
+                 }
+                 onUsePotion(p.type, total);
+                 setResultModal({ open: true, title: p.name || 'Pozione', total: total, detail: `${p.count}${p.die} (${rolls.join('+')}) -> ${POTION_TYPES.find(t=>t.id===p.type)?.label}` });
+            };
+
+            return (
+                <div className="dh-panel border-l-4 border-l-gray-600 bg-[#1e1e1e]">
+                    <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+                        <h3 className={`font-cinzel text-sm uppercase flex items-center gap-2 ${isEditMode ? 'text-white' : 'text-[#ca8a04]'}`}>{isOpen ? '▼' : '▶'} Inventario</h3>
+                    </div>
+                    {isOpen && (
+                        <div className="space-y-4">
+                            <div>{isEditMode ? <textarea value={inventory} onChange={e => onUpdate(e.target.value)} className="dh-input h-32 text-sm" placeholder="Zaino..." /> : <div className="text-sm text-gray-300 whitespace-pre-wrap">{inventory || "Zaino vuoto."}</div>}</div>
+                            <div className="border-t border-[#3f3f46] pt-2">
+                                <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setIsPotionsOpen(!isPotionsOpen)}>
+                                    <h4 className={`font-cinzel text-xs uppercase flex items-center gap-2 ${isEditMode ? 'text-white' : 'text-purple-400'}`}>{isPotionsOpen ? '▼' : '▶'} Pozioni</h4>
+                                </div>
+                                {isPotionsOpen && (
+                                    <div className="space-y-2">
+                                        {potions.map(p => (<PotionCard key={p.id} potion={p} isEditMode={isEditMode} onChange={(np) => np ? updatePotion(p.id, np) : removePotion(p.id)} onUse={() => handleUsePotion(p)} />))}
+                                        {isEditMode && <button onClick={addPotion} className="w-full py-2 border border-dashed border-gray-600 text-gray-500 rounded text-xs hover:text-white hover:border-white">+ Aggiungi Pozione</button>}
+                                        {!isEditMode && potions.length === 0 && <div className="text-gray-500 text-xs italic">Nessuna pozione.</div>}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                     <ResultModal isOpen={resultModal.open} onClose={() => setResultModal({ ...resultModal, open: false })} total={resultModal.total} detail={resultModal.detail} title={resultModal.title} />
+                </div>
+            );
+        };
+
+        const WeaponCard = ({ weapon, onChange, isEditMode, onEquip, label, onRollAttack, onRollDamage, collapsible, onUnequip, isCrit, globalEditMode }) => {
+            const update = (f, v) => onChange({...weapon, [f]: v});
+            const updateRow = (i, f, v) => { const rows = [...weapon.damageRows]; rows[i][f] = v; update('damageRows', rows); };
+            const addRow = () => update('damageRows', [...weapon.damageRows, { count: 1, die: "d6", mod: 0, mod2: 0, type: "fis" }]);
+            const removeRow = (idx) => update('damageRows', weapon.damageRows.filter((_, i) => i !== idx));
+            const [isExpanded, setIsExpanded] = useState(false);
+            const damageLabel = useMemo(() => {
+                let diceMap = {}; let totalMod = 0;
+                weapon.damageRows.forEach(r => { if(!diceMap[r.die]) diceMap[r.die] = 0; diceMap[r.die] += (r.count || 0); totalMod += (r.mod || 0) + (r.mod2 || 0); });
+                let parts = []; DICE.forEach(d => { if(diceMap[d] > 0) parts.push(`${diceMap[d]}${d}`); });
+                let modStr = ""; if(totalMod > 0) modStr = `+${totalMod}`; else if(totalMod < 0) modStr = `${totalMod}`;
+                return `${parts.join('+')}${modStr}`;
+            }, [weapon.damageRows]);
+            
+            const isActuallyEditing = globalEditMode !== undefined ? globalEditMode : isEditMode;
+
+            // Logic for the forge button color:
+            // If editing mode (Compilazione): White BG, Black Text, Hover Gray
+            // If playing mode (Scheda): Gold BG, Black Text, Hover Dark Gold
+            const forgeButtonClass = isActuallyEditing 
+                ? "bg-white text-black hover:bg-gray-200" 
+                : "bg-[#ca8a04] text-black hover:bg-[#a16207]";
+
+            if (collapsible && !isExpanded) {
+                return (
+                    <div className="bg-[#18181b] border border-[#3f3f46] rounded p-2 mb-2 cursor-pointer hover:border-[#ca8a04] transition-colors" onClick={() => setIsExpanded(true)}>
+                        <div className="flex justify-between items-center">
+                            <div className={`font-bold text-sm flex items-center gap-2 ${isEditMode ? 'text-white' : 'text-[#ca8a04]'}`}><span className="text-[10px] text-gray-500">▶</span>{weapon.name || "Nuova Arma"}</div>
+                        </div>
+                        <div className="text-xs text-gray-400 flex gap-2 mt-1"><span>{weapon.grip}</span><span className="text-[#ca8a04]">•</span><span>{weapon.range}</span><span className="text-[#ca8a04]">•</span><span className="font-mono text-gray-300">{damageLabel}</span></div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className={`dh-panel border-l-4 border-l-amber-600 mb-2 relative pt-6 ${isEditMode ? 'local-editing' : ''}`}>
+                    {isEditMode && <button onClick={() => onChange(null)} className="absolute top-1 right-1 text-red-500 font-bold px-2 py-0.5 text-xs hover:text-red-400 border border-red-900 rounded bg-[#1e1e1e] w-6 flex justify-center" title="Elimina Arma">X</button>}
+                    {isEditMode ? (
+                        <>
+                            <div className="flex items-center justify-center relative mb-2 w-full">
+                                {collapsible && <button onClick={() => setIsExpanded(false)} className="absolute left-0 text-gray-500 text-xs hover:text-white">▼</button>}
+                                <label className={`uppercase font-bold text-center ${label && (label.includes('PRIMARIA') || label.includes('SECONDARIA')) ? 'text-xs font-bold uppercase tracking-wider text-[#ca8a04] font-cinzel' : 'text-xs text-gray-500'} ${isActuallyEditing ? 'text-white' : ''}`}>{label || "ARMA"}</label>
+                            </div>
+                            <div className="mb-3"><textarea value={weapon.name} onChange={e => update('name', e.target.value)} className="dh-input font-bold w-full text-sm resize-none h-10" placeholder="Nome Arma" /></div>
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                                <div><label className="text-[9px] text-gray-500 uppercase font-bold block mb-1 text-left">CARATTERISTICA</label><select value={weapon.trait} onChange={e => update('trait', e.target.value)} className="dh-input text-sm py-1 w-full appearance-none">{Object.keys(TRAITS).map(k => <option key={k} value={k}>{TRAITS[k]}</option>)}</select></div>
+                                <div><label className="text-[9px] text-gray-500 uppercase font-bold block mb-1 text-left">IMPUGNATURA</label><select value={weapon.grip || ""} onChange={(e) => update('grip', e.target.value)} className="dh-input text-xs py-1 w-full appearance-none"><option value="">Scegli...</option><option value="Una mano">Una mano</option><option value="Due mani">Due mani</option></select></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                                <div><label className="text-[9px] text-gray-500 uppercase font-bold block mb-1 text-left">GITTATA</label><select value={weapon.range || "Mischia"} onChange={e => update('range', e.target.value)} className="dh-input text-xs py-1 w-full appearance-none"><option value="Mischia">Mischia</option><option value="Ravvicinato">Ravvicinato</option><option value="A distanza">A distanza</option></select></div>
+                                <div><label className={`text-[9px] uppercase font-bold block mb-1 text-left ${weapon.range === 'A distanza' ? 'text-gray-500' : 'text-gray-700'}`}>MUNIZIONI</label><input type="number" value={weapon.ammo || ""} onChange={e => update('ammo', e.target.value)} disabled={weapon.range !== 'A distanza'} className={`dh-input text-xs w-full py-1 ${weapon.range !== 'A distanza' ? 'opacity-30 cursor-not-allowed' : ''}`} placeholder="Qtà" /></div>
+                            </div>
+                            <div className="bg-[#1e1e1e] p-2 rounded mb-3 border border-[#3f3f46]">
+                                <div className="grid grid-cols-[3rem_0.5rem_1fr_0.5rem_1fr_0.5rem_1fr_1.5rem] gap-1 mb-1 text-[8px] text-gray-500 uppercase font-bold items-center whitespace-nowrap"><span className="text-left pl-1">Qtà</span><span></span><span className="text-left pl-1">Dado di danno</span><span></span><span className="text-left pl-1">Bonus al Danno</span><span></span><span className="text-left pl-1">Bonus Extra</span><span></span></div>
+                                {weapon.damageRows.map((row, i) => (
+                                    <div key={i} className="grid grid-cols-[3rem_0.5rem_1fr_0.5rem_1fr_0.5rem_1fr_1.5rem] gap-1 items-center mb-1 w-full">
+                                        <input type="number" value={row.count} onChange={e => updateRow(i, 'count', parseInt(e.target.value))} className="dh-input text-center p-1 text-sm" placeholder="N" />
+                                        <span className="text-gray-500 text-xs text-center">d</span>
+                                        <select value={row.die} onChange={e => updateRow(i, 'die', e.target.value)} className="dh-input p-1 text-sm text-center">{DICE.map(d => <option key={d} value={d}>{d}</option>)}</select>
+                                        <span className="text-gray-500 text-xs text-center">+</span>
+                                        <input type="number" value={row.mod} onChange={e => updateRow(i, 'mod', parseInt(e.target.value))} className="dh-input text-center p-1 text-sm" placeholder="0" />
+                                        <span className="text-gray-500 text-xs text-center">+</span>
+                                        <input type="number" value={row.mod2 || 0} onChange={e => updateRow(i, 'mod2', parseInt(e.target.value))} className="dh-input text-center p-1 text-sm" placeholder="0" />
+                                        <button onClick={() => removeRow(i)} className="bg-[#1e1e1e] border border-red-900 text-red-500 font-bold w-6 h-6 rounded flex items-center justify-center text-xs hover:text-red-400 shadow-sm">X</button>
+                                    </div>
+                                ))}
+                                <button onClick={addRow} className="text-xs text-[#ca8a04] mt-1 font-bold block w-full text-center hover:text-white transition-colors">+ Aggiungi Riga Danni</button>
+                            </div>
+                            {weapon.id === 'draft' && onEquip && <button onClick={onEquip} className={`w-full py-2 text-black font-bold uppercase rounded text-sm shadow-lg mt-2 ${forgeButtonClass}`}>FORGIA</button>}
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex justify-between items-center mb-2">
+                                {collapsible && <button onClick={() => setIsExpanded(false)} className="text-gray-500 text-xs mr-2 hover:text-white">▼</button>}
+                                <label className={`uppercase font-bold text-center w-full ${label && (label.includes('PRIMARIA') || label.includes('SECONDARIA')) ? 'text-xs font-bold uppercase tracking-wider text-[#ca8a04] font-cinzel' : 'text-xs text-gray-500'}`}>{label || "ARMA"}</label>
+                            </div>
+                            <div className="text-center mb-4">
+                                <div className="text-white font-bold text-2xl font-cinzel mb-1 leading-tight">{weapon.name || "Senza Nome"}</div>
+                                <div className="flex justify-center gap-4 text-xs text-gray-400 font-bold uppercase tracking-widest">
+                                    <span>{weapon.range} {weapon.range === 'A distanza' && weapon.rangeDetails ? `(${weapon.rangeDetails})` : ''}</span><span className="text-[#ca8a04]">•</span><span>{weapon.grip}</span>
+                                </div>
+                                {weapon.range === 'A distanza' && weapon.ammo && (
+                                    <div className="flex items-center justify-center mt-2 gap-2"><span className="text-[10px] text-gray-500 uppercase font-bold">Munizioni</span><div className="flex items-center bg-[#121212] px-2 py-0.5 rounded border border-[#3f3f46]"><button onClick={() => update('ammo', parseInt(weapon.ammo) - 1)} className="text-gray-400 hover:text-white font-bold px-1">-</button><span className="text-white font-bold text-sm mx-1">{weapon.ammo}</span><button onClick={() => update('ammo', parseInt(weapon.ammo) + 1)} className="text-gray-400 hover:text-white font-bold px-1">+</button></div></div>
+                                )}
+                            </div>
+                            {(!onEquip) && (
+                                <div className="grid grid-cols-2 gap-3 mt-4 items-end">
+                                    <button onClick={onRollAttack} className="bg-[#3f3f46] hover:bg-[#52525b] text-white py-3 rounded text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform font-cinzel border border-[#52525b]">TIRO PER COLPIRE</button>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="text-center text-xs text-gray-400 font-bold font-mono leading-none">({damageLabel})</div>
+                                        <button onClick={onRollDamage} className={isCrit ? "crit-btn w-full py-3 rounded text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform font-cinzel" : "bg-red-900 hover:bg-red-800 text-white py-3 rounded text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform font-cinzel border border-red-800"}>{isCrit ? "CRITICO" : "TIRO PER I DANNI"}</button>
+                                    </div>
+                                </div>
+                            )}
+                            {onEquip && weapon.id !== 'draft' && (<div className="grid grid-cols-2 gap-3 mt-2"><button onClick={() => onEquip(weapon.id)} className="col-span-2 bg-[#ca8a04] hover:bg-[#a16207] text-black py-2 rounded text-xs uppercase font-bold tracking-wider shadow-md transition-colors flex items-center justify-center">{label && (label.includes('PRIMARIA') || label.includes('SECONDARIA')) ? "RIPONI" : "EQUIPAGGIA"}</button></div>)}
+                            {onUnequip && !isEditMode && (<div className="grid grid-cols-2 gap-3 mt-2"><button onClick={() => onUnequip(weapon.id)} className="col-span-2 bg-[#ca8a04] hover:bg-[#a16207] text-black py-2 rounded text-xs uppercase font-bold tracking-wider shadow-md transition-colors flex items-center justify-center">RIPONI</button></div>)}
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        const WeaponSwapModal = ({ isOpen, onClose, newWeapon, activeWeapons, onSelect }) => {
+            if(!isOpen) return null;
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="bg-[#18181b] border border-[#ca8a04] w-full max-w-sm rounded-lg p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h2 className="font-cinzel text-lg text-white mb-4 text-center">Scegli quale arma sostituire</h2>
+                        <div className="space-y-3">
+                            {activeWeapons.map((w, i) => (
+                                <div key={i} onClick={() => onSelect(w)} className="bg-[#27272a] border border-[#3f3f46] hover:border-[#ca8a04] p-3 rounded cursor-pointer">
+                                    <div className="text-xs text-gray-500 font-bold uppercase mb-1">{w.activeSlot === 'primary' ? 'Arma Primaria' : 'Arma Secondaria'}</div>
+                                    <div className="font-bold text-white text-lg">{w.name}</div>
+                                    <div className="text-xs text-gray-400">{TRAITS[w.trait]} • {w.damageRows.map(r => `${r.count}${r.die}`).join('+')}</div>
+                                </div>
+                            ))}
+                        </div>
+                        <button onClick={onClose} className="mt-4 text-gray-500 text-xs underline w-full text-center">Annulla</button>
+                    </div>
+                </div>
+            );
+        };
+
+        
+        const CardViewer = ({ cards, onAdd, onDelete, title, onBack, onHome, disableLoop, showLabel }) => {
+            const [index, setIndex] = useState(0);
+            const [isFullScreen, setIsFullScreen] = useState(false);
+            const fileInputRef = useRef(null);
+            
+            // Gestione Drag per Mouse e Touch
+            const [startX, setStartX] = useState(null);
+            const [isDragging, setIsDragging] = useState(false);
+            const [offset, setOffset] = useState(0);
+            const minSwipeDistance = 50;
+            const isClickRef = useRef(true);
+
+            const handleFile = async (e) => {
+                if(e.target.files[0]) {
+                    const img = await compressImage(e.target.files[0]);
+                    onAdd(img);
+                    setIndex(cards.length); 
+                }
+            };
+            
+            const handleDelete = () => {
+                if(confirm("Eliminare questa carta?")) {
+                    onDelete(index);
+                    if(index >= cards.length - 1) setIndex(Math.max(0, cards.length - 2));
+                }
+            };
+
+            const len = cards.length;
+
+            const safeIndex = (i) => {
+                if (len === 0) return 0;
+                return (i % len + len) % len;
+            };
+            
+            const next = () => {
+                if (disableLoop) {
+                    if (index < len - 1) setIndex(index + 1);
+                } else {
+                    setIndex(safeIndex(index + 1));
+                }
+            };
+
+            const prev = () => {
+                 if (disableLoop) {
+                    if (index > 0) setIndex(index - 1);
+                } else {
+                    setIndex(safeIndex(index - 1));
+                }
+            };
+
+            // Handlers per Touch
+            const onTouchStart = (e) => {
+                setStartX(e.targetTouches[0].clientX);
+                setIsDragging(true);
+                setOffset(0);
+                isClickRef.current = true;
+            };
+
+            const onTouchMove = (e) => {
+                if (!isDragging) return;
+                const currentX = e.targetTouches[0].clientX;
+                const currentOffset = currentX - startX;
+                if(Math.abs(currentOffset) > 5) isClickRef.current = false;
+                setOffset(currentOffset);
+            }
+
+            const onTouchEnd = (e) => {
+                if (!isDragging) return;
+                setIsDragging(false);
+                if (Math.abs(offset) > minSwipeDistance) {
+                    if (offset > 0) prev();
+                    else next();
+                }
+                setOffset(0);
+            };
+
+            // Handlers per Mouse
+            const onMouseDown = (e) => {
+                setStartX(e.clientX);
+                setIsDragging(true);
+                setOffset(0);
+                isClickRef.current = true;
+            };
+            
+             const onMouseMove = (e) => {
+                if (!isDragging) return;
+                const currentX = e.clientX;
+                const currentOffset = currentX - startX;
+                if(Math.abs(currentOffset) > 5) isClickRef.current = false;
+                setOffset(currentOffset);
+            }
+
+            const onMouseUp = (e) => {
+                if (!isDragging) return;
+                setIsDragging(false);
+                 if (Math.abs(offset) > minSwipeDistance) {
+                    if (offset > 0) prev();
+                    else next();
+                }
+                setOffset(0);
+            };
+
+            const onMouseLeave = () => {
+                if(isDragging) {
+                    setIsDragging(false);
+                    setOffset(0);
+                }
+            };
+            
+            const getCardStyle = (i) => {
+                if (len === 0) return {};
+                
+                let offset = i - index;
+                
+                if (!disableLoop) {
+                    offset = (i - index) % len;
+                    if (offset > len / 2) offset -= len;
+                    if (offset < -len / 2) offset += len;
+                }
+
+                const dist = Math.abs(offset);
+
+                let leftVal = "50%";
+                let scaleVal = 1;
+                let zIndexVal = 30;
+                let opacityVal = 0;
+                let displayVal = 'none';
+                let filterVal = "none";
+
+                // CARTA CENTRALE
+                if (offset === 0) {
+                    leftVal = "50%";
+                    scaleVal = 1;
+                    zIndexVal = 30; 
+                    opacityVal = 1;
+                    displayVal = 'flex';
+                    filterVal = "none";
+                } 
+                // CARTA PRECEDENTE
+                else if (offset === -1) {
+                    leftVal = "15%"; 
+                    scaleVal = 0.85; 
+                    zIndexVal = 20; 
+                    opacityVal = 1;
+                    displayVal = 'flex';
+                    filterVal = "blur(1px) brightness(60%)";
+                } 
+                // CARTA SUCCESSIVA
+                else if (offset === 1) {
+                    leftVal = "85%"; 
+                    scaleVal = 0.85; 
+                    zIndexVal = 20; 
+                    opacityVal = 1;
+                    displayVal = 'flex';
+                    filterVal = "blur(1px) brightness(60%)";
+                }
+
+                return {
+                    position: 'absolute',
+                    top: '50%',
+                    left: leftVal,
+                    width: '55%', 
+                    maxWidth: '240px',
+                    aspectRatio: '2.5/3.5',
+                    transform: `translate(-50%, -50%) scale(${scaleVal})`,
+                    zIndex: zIndexVal,
+                    opacity: opacityVal,
+                    filter: filterVal,
+                    transition: 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)', 
+                    display: displayVal,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    pointerEvents: 'auto', 
+                    cursor: dist === 0 ? 'zoom-in' : 'pointer',
+                    boxShadow: dist === 0 ? '0 10px 30px -5px rgba(0,0,0,0.8)' : '0 4px 10px rgba(0,0,0,0.5)',
+                    borderRadius: '12px',
+                    border: '1px solid #3f3f46',
+                    background: '#1e1e1e'
+                };
+            };
+
+            const getCardContent = (card) => {
+                const imgUrl = typeof card === 'object' ? card.url : card;
+                const label = typeof card === 'object' ? card.type : null;
+                return (
+                    <div className="w-full h-full relative flex flex-col items-center">
+                        <img src={imgUrl} className="w-full h-full object-contain rounded-lg pointer-events-none select-none" draggable="false" />
+                        {showLabel && label && (
+                            <div className="absolute -bottom-8 w-full text-center">
+                                <span className="text-[#ca8a04] font-bold uppercase text-xs tracking-wider bg-black/50 px-2 py-1 rounded">{label}</span>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="w-full h-[500px] relative bg-[#151515] overflow-hidden flex flex-col border border-[#3f3f46] rounded-lg mt-2">
+                    <div className="flex justify-between items-center p-4 border-b border-[#3f3f46] bg-[#1e1e1e] relative z-30">
+                        <div className="flex items-center gap-2">
+                             {/* Home icon removed here, as it's in the menu header */}
+                        </div>
+                         
+                         {/* Title also handled by menu header, but keeping here for context or removal */}
+                         <div className="font-cinzel text-sm text-[#ca8a04] font-bold truncate max-w-[50%] absolute left-1/2 -translate-x-1/2 opacity-0">{title}</div>
+                         
+                         <div className="flex gap-4">
+                             {/* Icona Floppy removed */}
+                             {onAdd && <button onClick={() => fileInputRef.current.click()} className="text-[#ca8a04] hover:text-[#eab308]"><IconPlus /></button>}
+                             <input type="file" ref={fileInputRef} onChange={handleFile} className="hidden" accept="image/*" />
+                         </div>
+                    </div>
+                    
+                    <div 
+                        className="flex-1 relative w-full overflow-hidden"
+                        onTouchStart={onTouchStart}
+                        onTouchMove={onTouchMove}
+                        onTouchEnd={onTouchEnd}
+                        onMouseDown={onMouseDown}
+                        onMouseMove={onMouseMove}
+                        onMouseUp={onMouseUp}
+                        onMouseLeave={onMouseLeave}
+                    >
+                        {cards.length > 0 ? (
+                            <div 
+                                className="w-full h-full relative"
+                            >
+                                {cards.map((card, i) => (
+                                    <div key={i} style={getCardStyle(i)} onClick={(e) => {
+                                        e.stopPropagation();
+                                        if(!isClickRef.current) return;
+
+                                        // Click navigation
+                                        if (i === (index + 1) % len || (i === 0 && index === len - 1 && !disableLoop)) next();
+                                        else if (i === (index - 1 + len) % len || (i === len - 1 && index === 0 && !disableLoop)) prev();
+                                        else if (i === index) setIsFullScreen(true);
+                                    }}>
+                                        {getCardContent(card)}
+                                    </div>
+                                ))}
+                                
+                                {onDelete && (
+                                <div className="absolute bottom-4 right-4 z-40 pointer-events-auto">
+                                     <button onClick={handleDelete} className="p-2 bg-red-900/80 rounded text-white hover:bg-red-800 shadow-lg"><IconTrash /></button>
+                                </div>
+                                )}
+                                <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-gray-500 z-30 font-mono pointer-events-none">
+                                    {index + 1} / {cards.length}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex h-full items-center justify-center text-gray-500 italic text-center px-4 pointer-events-none">
+                                Nessuna carta presente.
+                            </div>
+                        )}
+                    </div>
+                    
+                    {isFullScreen && cards.length > 0 && (
+                        <div className="fixed inset-0 z-[6000] bg-black/95 flex justify-center items-center p-4" onClick={() => setIsFullScreen(false)}>
+                            <button className="absolute top-4 right-4 text-white text-4xl">&times;</button>
+                            <img 
+                                src={typeof cards[index] === 'object' ? cards[index].url : cards[index]} 
+                                className="max-w-full max-h-full object-contain" 
+                            />
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
+        const AccordionItem = ({ title, isOpen, onClick, children }) => (
+            <div className="w-full border-b border-[#3f3f46]">
+                <button 
+                    onClick={onClick}
+                    className={`w-full p-4 flex justify-between items-center text-left transition-colors ${isOpen ? 'bg-[#27272a] text-[#ca8a04]' : 'bg-[#1e1e1e] text-white hover:bg-[#27272a]'}`}
+                >
+                    <span className="font-bold font-cinzel text-sm">{title}</span>
+                    <span>{isOpen ? '▼' : '▶'}</span>
+                </button>
+                {isOpen && (
+                    <div className="bg-[#121212] border-t border-[#3f3f46] p-2 animate-fadeIn">
+                        {children}
+                    </div>
+                )}
+            </div>
+        );
+
+        const CardManager = ({ cardsData, setCardsData, onBack, isPlayerView = false, charData, setCharData }) => {
+            // State for Accordion Logic
+            const [expandedCategory, setExpandedCategory] = useState(null); // 'heritages', 'communities', 'classes', 'subclasses', 'domains'
+            const [expandedSubOption, setExpandedSubOption] = useState(null); // Class Name or Domain Name
+            const [expandedFinalOption, setExpandedFinalOption] = useState(null); // Subclass Name or Level
+
+            // Subclass Upload Modal State
+            const [showSubclassModal, setShowSubclassModal] = useState(false);
+            const [tempSubclassImg, setTempSubclassImg] = useState(null);
+            
+            // Paths for saving
+            const activeDeck = expandedCategory;
+            const selectedClass = expandedSubOption;
+            const selectedSubclass = expandedFinalOption;
+            const selectedDomain = expandedSubOption;
+            const selectedLevel = expandedFinalOption;
+
+            useEffect(() => {
+                localStorage.setItem('dh_cards_v1', JSON.stringify(cardsData));
+            }, [cardsData]);
+            
+            // Handler to intercept image add
+            const handleAddImage = (img) => {
+                if (activeDeck === 'subclasses') {
+                    setTempSubclassImg(img);
+                    setShowSubclassModal(true);
+                } else {
+                    saveCard(img);
+                }
+            };
+
+            const confirmSubclassCard = (type) => {
+                 saveCard(tempSubclassImg, type);
+                 setShowSubclassModal(false);
+                 setTempSubclassImg(null);
+            };
+
+            const saveCard = (img, type = null) => {
+                 const newData = {...cardsData};
+                 if (activeDeck === 'subclasses') {
+                     if (!newData.subclasses[selectedClass]) newData.subclasses[selectedClass] = {};
+                     if (!newData.subclasses[selectedClass][selectedSubclass]) newData.subclasses[selectedClass][selectedSubclass] = [];
+                     
+                     newData.subclasses[selectedClass][selectedSubclass].push({ url: img, type: type });
+                     
+                     const order = { "Fondazione": 1, "Specializzazione": 2, "Maestria": 3 };
+                     newData.subclasses[selectedClass][selectedSubclass].sort((a, b) => {
+                         return (order[a.type] || 99) - (order[b.type] || 99);
+                     });
+
+                 } else if (activeDeck === 'domains') {
+                     if (!newData.domains[selectedDomain]) newData.domains[selectedDomain] = {};
+                     if (!newData.domains[selectedDomain][selectedLevel]) newData.domains[selectedDomain][selectedLevel] = [];
+                     newData.domains[selectedDomain][selectedLevel].push(img);
+                 } else {
+                     newData[activeDeck].push(img);
+                 }
+                 setCardsData(newData);
+            };
+            
+            const deleteCard = (idx) => {
+                const newData = {...cardsData};
+                if (activeDeck === 'subclasses') {
+                     newData.subclasses[selectedClass][selectedSubclass].splice(idx, 1);
+                } else if (activeDeck === 'domains') {
+                     newData.domains[selectedDomain][selectedLevel].splice(idx, 1);
+                 } else {
+                     newData[activeDeck].splice(idx, 1);
+                 }
+                 setCardsData(newData);
+            };
+
+            const getCurrentCards = () => {
+                if (activeDeck === 'subclasses') {
+                    return cardsData.subclasses[selectedClass]?.[selectedSubclass] || [];
+                }
+                if (activeDeck === 'domains') {
+                    return cardsData.domains[selectedDomain]?.[selectedLevel] || [];
+                }
+                return cardsData[activeDeck] || [];
+            };
+
+            const SubclassCardModal = () => {
+                if (!showSubclassModal) return null;
+                return (
+                    <div className="modal-overlay" onClick={() => setShowSubclassModal(false)}>
+                        <div className="bg-[#18181b] border border-[#ca8a04] w-full max-w-sm rounded-lg p-5 shadow-2xl flex flex-col items-center" onClick={e => e.stopPropagation()}>
+                            <h2 className="font-cinzel text-lg text-[#ca8a04] mb-4">Tipo Carta Sottoclasse</h2>
+                            {tempSubclassImg && <img src={tempSubclassImg} className="w-32 h-auto object-contain mb-4 border border-gray-600 rounded" />}
+                            <div className="w-full flex flex-col gap-2">
+                                <button onClick={() => confirmSubclassCard('Fondazione')} className="bg-[#1e1e1e] border border-[#3f3f46] text-white py-3 rounded hover:border-[#ca8a04] font-bold">Fondazione</button>
+                                <button onClick={() => confirmSubclassCard('Specializzazione')} className="bg-[#1e1e1e] border border-[#3f3f46] text-white py-3 rounded hover:border-[#ca8a04] font-bold">Specializzazione</button>
+                                <button onClick={() => confirmSubclassCard('Maestria')} className="bg-[#1e1e1e] border border-[#3f3f46] text-white py-3 rounded hover:border-[#ca8a04] font-bold">Maestria</button>
+                            </div>
+                            <button onClick={() => setShowSubclassModal(false)} className="mt-4 text-gray-500 text-sm underline">Annulla</button>
+                        </div>
+                    </div>
+                );
+            };
+            
+            const handleCategoryClick = (cat) => {
+                setExpandedCategory(expandedCategory === cat ? null : cat);
+                setExpandedSubOption(null);
+                setExpandedFinalOption(null);
+            };
+
+            const handleSubOptionClick = (sub) => {
+                setExpandedSubOption(expandedSubOption === sub ? null : sub);
+                setExpandedFinalOption(null);
+            };
+
+            const handleFinalOptionClick = (final) => {
+                setExpandedFinalOption(expandedFinalOption === final ? null : final);
+            };
+            
+            // --- Helper for Player View ---
+            const getDomainCards = (domainName) => {
+                const domainData = cardsData.domains[domainName];
+                if (!domainData) return [];
+                // Flatten all levels for this domain
+                let allCards = [];
+                Object.values(domainData).forEach(levelCards => {
+                    if (Array.isArray(levelCards)) allCards = [...allCards, ...levelCards];
+                });
+                return allCards;
+            };
+
+            const handleAddFromDepot = (img) => {
+                const newCard = { 
+                    id: Date.now(), 
+                    url: typeof img === 'object' ? img.url : img, 
+                    type: typeof img === 'object' ? img.type : null,
+                    isActive: true 
+                };
+                if (setCharData) {
+                    setCharData(prev => ({...prev, deck: [...prev.deck, newCard]}));
+                }
+            };
+            
+            const handleRemoveFromActive = (idx) => {
+                 if (setCharData && charData && charData.deck) {
+                    const newDeck = [...charData.deck];
+                    newDeck.splice(idx, 1);
+                    setCharData(prev => ({...prev, deck: newDeck}));
+                 }
+            };
+
+            return (
+                <div className="min-h-screen bg-[#121212] text-white flex flex-col items-center max-w-md mx-auto">
+                    <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-50 flex justify-between items-center shadow-md w-full z-[5000]">
+                         <button onClick={onBack} className="text-[#ca8a04] hover:text-[#eab308]"><IconHome /></button>
+                         <h1 className="font-cinzel text-xl text-[#ca8a04] font-bold absolute left-1/2 -translate-x-1/2">{isPlayerView ? "Carte Giocatore" : "Gestione Carte"}</h1>
+                         <div className="w-6"></div>
+                    </div>
+
+                    <div className="w-full pb-32 pt-2">
+                        {isPlayerView ? (
+                            <>
+                                {/* --- VISTA GIOCATORE --- */}
+                                
+                                {/* 1. Mazzo Ascendenza (Inline Viewer) */}
+                                <div className="mb-4">
+                                     <h3 className="font-bold font-cinzel text-sm text-[#ca8a04] mb-2 text-center">Mazzo Ascendenza</h3>
+                                     <InlineCardViewer 
+                                        cards={cardsData['heritages']} 
+                                        onAdd={handleAddImage} 
+                                        onDelete={deleteCard} 
+                                        showLabel={true}
+                                     />
+                                </div>
+
+                                {/* 2. Mazzo Comunità (Accordion) */}
+                                <AccordionItem title="Mazzo Comunità" isOpen={expandedCategory === 'communities'} onClick={() => handleCategoryClick('communities')}>
+                                     <InlineCardViewer cards={cardsData['communities']} onAdd={handleAddImage} onDelete={deleteCard} showLabel={true} />
+                                </AccordionItem>
+                            </>
+                        ) : (
+                            <>
+                                {/* --- VISTA GESTORE (Admin) - Tutto --- */}
+                                <AccordionItem title="Mazzo Ascendenza" isOpen={expandedCategory === 'heritages'} onClick={() => handleCategoryClick('heritages')}>
+                                    <InlineCardViewer cards={cardsData['heritages']} onAdd={handleAddImage} onDelete={deleteCard} showLabel={true} />
+                                </AccordionItem>
+
+                                <AccordionItem title="Mazzo Comunità" isOpen={expandedCategory === 'communities'} onClick={() => handleCategoryClick('communities')}>
+                                     <InlineCardViewer cards={cardsData['communities']} onAdd={handleAddImage} onDelete={deleteCard} showLabel={true} />
+                                </AccordionItem>
+
+                                <AccordionItem title="Mazzo Classi" isOpen={expandedCategory === 'classes'} onClick={() => handleCategoryClick('classes')}>
+                                     <InlineCardViewer cards={cardsData['classes']} onAdd={handleAddImage} onDelete={deleteCard} showLabel={true} />
+                                </AccordionItem>
+
+                                <AccordionItem title="Mazzo Sottoclassi" isOpen={expandedCategory === 'subclasses'} onClick={() => handleCategoryClick('subclasses')}>
+                                    <div className="pl-2">
+                                        {CLASSES_LIST.map(c => (
+                                            <AccordionItem key={c} title={c} isOpen={expandedSubOption === c} onClick={() => handleSubOptionClick(c)}>
+                                                <div className="pl-2">
+                                                     {CLASS_CONFIG[c].subclasses.map(sub => (
+                                                        <AccordionItem key={sub} title={sub} isOpen={expandedFinalOption === sub} onClick={() => handleFinalOptionClick(sub)}>
+                                                             <InlineCardViewer 
+                                                                cards={cardsData.subclasses?.[c]?.[sub] || []} 
+                                                                onAdd={handleAddImage} 
+                                                                onDelete={deleteCard} 
+                                                                disableLoop={true}
+                                                                showLabel={false}
+                                                             />
+                                                        </AccordionItem>
+                                                     ))}
+                                                </div>
+                                            </AccordionItem>
+                                        ))}
+                                    </div>
+                                </AccordionItem>
+
+                                <AccordionItem title="Mazzi Dominio" isOpen={expandedCategory === 'domains'} onClick={() => handleCategoryClick('domains')}>
+                                    <div className="pl-2">
+                                        {DOMAINS_LIST.map(d => (
+                                            <AccordionItem key={d} title={d} isOpen={expandedSubOption === d} onClick={() => handleSubOptionClick(d)}>
+                                                 <div className="pl-2">
+                                                    {[1,2,3,4,5,6,7,8,9,10].map(lvl => (
+                                                        <AccordionItem key={lvl} title={`Livello ${lvl}`} isOpen={expandedFinalOption === `Livello ${lvl}`} onClick={() => handleFinalOptionClick(`Livello ${lvl}`)}>
+                                                            <InlineCardViewer 
+                                                                cards={cardsData.domains?.[d]?.[`Livello ${lvl}`] || []} 
+                                                                onAdd={handleAddImage} 
+                                                                onDelete={deleteCard} 
+                                                            />
+                                                        </AccordionItem>
+                                                    ))}
+                                                 </div>
+                                            </AccordionItem>
+                                        ))}
+                                    </div>
+                                </AccordionItem>
+                            </>
+                        )}
+                    </div>
+
+                    <SubclassCardModal />
+                </div>
+            );
+        };
+        
+        // Alias for clarity since we refactored
+        const InlineCardViewer = CardViewer;
+
+        const CharacterSheet = ({ data, onSave, onBack, initialEditMode, cardsData, setCardsData }) => {
+            const [char, setChar] = useState(() => {
+                const c = {...data};
+                if(!c.classes || !Array.isArray(c.classes) || c.classes.length === 0) { c.classes = [{ name: "Bardo", subclass: "Cantastorie", level: 1 }]; }
+                if(!c.experiences) c.experiences = Array(5).fill({ text: "", mod: 0, cost: 1 });
+                if(!c.deck) c.deck = []; // Initialize deck
+                if(c.weapons) {
+                    c.weapons = c.weapons.map((w, i) => {
+                        if(w.activeSlot) return w;
+                        if (i === 0) return { ...w, activeSlot: 'primary', id: w.id || Date.now() };
+                        if (i === 1 && c.weapons[0].grip !== 'Due mani') return { ...w, activeSlot: 'secondary', id: w.id || Date.now()+1 };
+                        return { ...w, activeSlot: 'none', id: w.id || Date.now()+i };
+                    });
+                }
+                if(c.weapons) c.weapons = c.weapons.map(w => ({...w, grip: w.grip || ""}));
+                c.experiences = c.experiences.map(e => ({...e, cost: e.cost || 1}));
+                if(!c.potions) c.potions = [];
+                if(!c.armorSlots) c.armorSlots = { current: 0, max: 6 };
+                return c;
+            });
+            
+            const [isEditMode, setIsEditMode] = useState(initialEditMode);
+            const [showGrimoire, setShowGrimoire] = useState(false);
+            
+            const [diceModal, setDiceModal] = useState({ open: false, trait: '', mod: 0 });
+            const [showFeatures, setShowFeatures] = useState(false);
+            const [showExperiences, setShowExperiences] = useState(false);
+            const [showInventory, setShowInventory] = useState(false);
+            const [shortRestModalOpen, setShortRestModalOpen] = useState(false);
+            const [levelUpModalOpen, setLevelUpModalOpen] = useState(false);
+            const [damageResultModal, setDamageResultModal] = useState({ open: false, total: 0, detail: '', title: '' });
+            const [swapModal, setSwapModal] = useState({ open: false, newWeapon: null });
+            const [draftWeapon, setDraftWeapon] = useState({...DEFAULT_WEAPON, id: 'draft'});
+            const [isForging, setIsForging] = useState(false); 
+            const [critWeaponId, setCritWeaponId] = useState(null);
+            const imgInput = useRef(null);
+
+            useEffect(() => onSave(char), [char]);
+
+            const update = (f, v) => setChar(p => ({...p, [f]: v}));
+            const updateDeep = (cat, field, val) => setChar(p => ({...p, [cat]: {...p[cat], [field]: val}}));
+            const updateTrait = (k, v) => setChar(p => ({...p, traits: {...p.traits, [k]: parseInt(v)||0}}));
+            const updateExp = (idx, newExp) => { const newExps = [...char.experiences]; newExps[idx] = newExp; setChar(p => ({...p, experiences: newExps})); };
+            const updateClass = (idx, field, val) => { const newClasses = [...char.classes]; newClasses[idx] = { ...newClasses[idx], [field]: val }; if (field === 'name') { const config = CLASS_CONFIG[val]; if (config && config.subclasses) { newClasses[idx].subclass = config.subclasses[0]; } } setChar(p => ({...p, classes: newClasses})); };
+            const handleImgUpload = async (e) => { if(e.target.files[0]) update('charImg', await compressImage(e.target.files[0])); };
+            
+            const mainClass = char.classes[0]?.name || "Bardo";
+            const classConfig = CLASS_CONFIG[mainClass] || { spellcast: "-", domains: ["-", "-"], subclasses: [] };
+            
+            const totalLevel = (char.classes || []).reduce((acc, c) => acc + (parseInt(c.level) || 1), 0);
+            const rank = getRank(totalLevel);
+
+            const openDiceModal = (key, weaponId = null) => { if (!isEditMode) { setDiceModal({ open: true, trait: TRAITS[key], mod: char.traits[key], weaponId }); } };
+            const handleDiceRollResult = (result) => { if (result.isHope || result.isCrit) { updateDeep('hope', 'current', Math.min(char.hope.max, char.hope.current + 1)); } if (result.isCrit) { updateDeep('stress', 'current', Math.max(0, char.stress.current - 1)); } if (result.isCrit && diceModal.weaponId) { setCritWeaponId(diceModal.weaponId); } else { if(diceModal.weaponId) setCritWeaponId(null); } };
+
+            const activeWeapons = char.weapons.filter(w => w.activeSlot === 'primary' || w.activeSlot === 'secondary');
+            const inventoryWeapons = char.weapons.filter(w => w.activeSlot === 'none' || !w.activeSlot);
+
+            const equipWeapon = (targetWeapon) => { const isTwoHanded = targetWeapon.grip === "Due mani"; const currentPrimary = activeWeapons.find(w => w.activeSlot === 'primary'); const currentSecondary = activeWeapons.find(w => w.activeSlot === 'secondary'); let newWeapons = [...char.weapons]; const setSlot = (id, slot) => { newWeapons = newWeapons.map(w => w.id === id ? { ...w, activeSlot: slot } : w); }; if (isTwoHanded) { activeWeapons.forEach(w => setSlot(w.id, 'none')); setSlot(targetWeapon.id, 'primary'); setChar(p => ({ ...p, weapons: newWeapons })); } else { if (currentPrimary && currentPrimary.grip === "Due mani") { setSlot(currentPrimary.id, 'none'); setSlot(targetWeapon.id, 'primary'); setChar(p => ({ ...p, weapons: newWeapons })); } else if (activeWeapons.length < 2) { const targetSlot = !currentPrimary ? 'primary' : 'secondary'; setSlot(targetWeapon.id, targetSlot); setChar(p => ({ ...p, weapons: newWeapons })); } else { setSwapModal({ open: true, newWeapon: targetWeapon }); } } };
+            const finalizeSwap = (weaponToUnequip) => { let newWeapons = [...char.weapons]; newWeapons = newWeapons.map(w => w.id === weaponToUnequip.id ? { ...w, activeSlot: 'none' } : w); newWeapons = newWeapons.map(w => w.id === swapModal.newWeapon.id ? { ...w, activeSlot: weaponToUnequip.activeSlot } : w); setChar(p => ({ ...p, weapons: newWeapons })); setSwapModal({ open: false, newWeapon: null }); };
+            const rollAttack = (w) => { openDiceModal(w.trait, w.id); };
+            const rollDamage = (w) => { let total = 0; let details = []; const isCrit = critWeaponId === w.id; w.damageRows.forEach(row => { let sub = (row.mod || 0) + (row.mod2 || 0); if(isCrit) { sub += (parseInt(row.die.slice(1)) * row.count); } let rolls = []; for(let i=0; i<row.count; i++) { const r = Math.floor(Math.random() * parseInt(row.die.slice(1))) + 1; sub += r; rolls.push(r); } total += sub; let modStr = ""; if (row.mod) modStr += (row.mod > 0 ? '+' : '') + row.mod; if (row.mod2) modStr += (row.mod2 > 0 ? '+' : '') + row.mod2; if (isCrit) modStr += ` + ${parseInt(row.die.slice(1)) * row.count} (Crit)`; details.push(`${row.count}${row.die}(${rolls.join('+')})${modStr}`); }); if(isCrit) setCritWeaponId(null); setDamageResultModal({ open: true, total: total, detail: details.join(' + '), title: isCrit ? `DANNO CRITICO ${w.name}` : `Danni ${w.name}` }); };
+            const handleShortRestConfirm = (results) => { let newChar = {...char}; results.forEach(res => { if (res.action === 'hp') { newChar.hp.current = Math.max(0, newChar.hp.current - res.value); } else if (res.action === 'stress') { newChar.stress.current = Math.max(0, newChar.stress.current - res.value); } else if (res.action === 'armor') { newChar.armorSlots.current = Math.max(0, newChar.armorSlots.current - res.value); } else if (res.action === 'prepare') { newChar.hope.current = Math.min(newChar.hope.max, newChar.hope.current + res.value); } }); setChar(newChar); };
+            const handleLongRest = () => { if (confirm('Effettuare un Riposo Lungo? Questo ripristinerà HP, Stress, Speranza e Slot Armatura.')) { setChar(p => ({ ...p, hp: { ...p.hp, current: 0 }, stress: { ...p.stress, current: 0 }, hope: { ...p.hope, current: Math.max(p.hope.current, 2) }, armorSlots: { ...p.armorSlots, current: 0 } })); } };
+            const handleLevelUp = () => { if (totalLevel < 10) { updateClass(0, 'level', totalLevel + 1); } setLevelUpModalOpen(false); };
+            const handleUsePotion = (type, value) => { let newChar = {...char}; if (type === 'hp') { newChar.hp.current = Math.max(0, newChar.hp.current - value); } else if (type === 'stress') { newChar.stress.current = Math.max(0, newChar.stress.current - value); } else if (type === 'hope') { newChar.hope.current = Math.min(newChar.hope.max, newChar.hope.current + value); } setChar(newChar); };
+            const forgeWeapon = () => { const newWeapon = { ...draftWeapon, id: Date.now(), activeSlot: 'none' }; const newWeaponsList = [...char.weapons, newWeapon]; setChar(p => ({ ...p, weapons: newWeaponsList })); setDraftWeapon({...DEFAULT_WEAPON, id: 'draft'}); setIsForging(false); };
+            const handleDraftUpdate = (w) => { if (w === null) { setDraftWeapon({...DEFAULT_WEAPON, id: 'draft'}); setIsForging(false); } else { setDraftWeapon(w); } };
+            const unequipWeapon = (id) => { const newWeapons = char.weapons.map(w => w.id === id ? { ...w, activeSlot: 'none' } : w); setChar(p => ({ ...p, weapons: newWeapons })); };
+            
+            const toggleEditMode = () => {
+                if (isForging) {
+                    setDraftWeapon(JSON.parse(JSON.stringify({...DEFAULT_WEAPON, id: 'draft'})));
+                    setIsForging(false);
+                }
+                setIsEditMode(!isEditMode);
+            };
+
+            if (showGrimoire) {
+                return (
+                    <CardManager 
+                        cardsData={cardsData} 
+                        setCardsData={setCardsData} 
+                        onBack={() => setShowGrimoire(false)} 
+                        isPlayerView={true}
+                    />
+                );
+            }
+
+            return (
+                <div className={`pb-20 max-w-md mx-auto ${isEditMode ? 'editing' : 'playing'}`}>
+                    <div className="sticky top-0 bg-[#121212]/95 backdrop-blur border-b border-[#3f3f46] p-3 z-50 flex justify-between items-center shadow-md">
+                        <div className="flex items-center gap-2">
+                             <button onClick={onBack} className="text-[#ca8a04] hover:text-[#eab308] transition-colors"><IconHome /></button>
+                        </div>
+                        <div className={`text-[#ca8a04] font-cinzel font-bold absolute left-1/2 -translate-x-1/2 ${isEditMode ? 'header-title' : ''}`}>{isEditMode ? "COMPILAZIONE SCHEDA" : "SCHEDA PERSONAGGIO"}</div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setShowGrimoire(true)} className="text-[#ca8a04] hover:text-[#eab308]"><IconBook /></button>
+                            <button onClick={toggleEditMode} className={`text-xl p-1 transition-colors ${isEditMode ? 'text-gray-500' : 'text-[#ca8a04]'}`} title={isEditMode ? "Salva" : "Modifica"}>{isEditMode ? <IconLockOpen /> : <IconLockClosed />}</button>
+                        </div>
+                    </div>
+
+                    <div className="p-3 space-y-4">
+                        <div className="text-center mt-2 relative">
+                            <input type="file" ref={imgInput} onChange={handleImgUpload} className="hidden" accept="image/*"/>
+                            <div className="char-portrait-container">
+                                <img src={char.charImg || "https://placehold.co/200x200/27272a/gray?text=NO+IMG"} className="char-portrait" onClick={()=>isEditMode && imgInput.current.click()} />
+                                <div className="level-rank-container" onClick={() => !isEditMode && totalLevel < 10 && setLevelUpModalOpen(true)}>
+                                    <div className="level-badge-circle"><span className="level-text">{totalLevel}</span><span className="level-label">Liv.</span></div>
+                                    <div className="rank-text">RANGO {rank}</div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-center gap-3">
+                                {isEditMode ? <input value={char.name} onChange={e => update('name', e.target.value)} className="font-cinzel text-[#ca8a04] font-bold text-2xl w-full bg-transparent text-center border-b border-[#3f3f46] mb-2" placeholder="Nome Eroe" /> : <div className="flex items-center gap-3"><h1 className="font-cinzel text-[#ca8a04] font-bold text-3xl mb-0 leading-none">{char.name}</h1></div>}
+                            </div>
+                            
+                            <div className={`${isEditMode ? 'text-sm text-[#ca8a04] font-bold bg-[#1e1e1e] p-3 rounded border border-[#3f3f46]' : 'mt-1 mb-2'}`}>
+                                {isEditMode ? (
+                                    <div className="grid gap-2 text-left">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div><label className="text-[10px] text-gray-500 block">Stirpe</label><select value={char.heritage} onChange={e => update('heritage', e.target.value)} className="bg-[#27272a] text-white text-xs py-1 px-2 rounded border border-[#3f3f46] w-full focus:outline-none focus:border-[#ca8a04] appearance-none"><option value="" disabled>Scegli la tua stirpe</option>{HERITAGE_LIST.map(h => <option key={h} value={h}>{h}</option>)}</select></div>
+                                            <div><label className="text-[10px] text-gray-500 block">Comunità</label><select value={char.community} onChange={e => update('community', e.target.value)} className="bg-[#27272a] text-white text-xs py-1 px-2 rounded border border-[#3f3f46] w-full focus:outline-none focus:border-[#ca8a04] appearance-none"><option value="" disabled>Scegli la tua comunità</option>{COMMUNITY_LIST.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                                        </div>
+                                        {char.classes.map((c, idx) => (<div key={idx} className="flex gap-2 items-center bg-[#27272a] p-1 rounded mb-1"><select value={c.name} onChange={e => updateClass(idx, 'name', e.target.value)} className="bg-transparent text-white text-xs p-1 rounded border border-gray-600 w-1/3"><option value="" disabled>Scegli la tua classe</option>{CLASSES_LIST.map(cn => <option key={cn} value={cn}>{cn}</option>)}</select><select value={c.subclass} onChange={e => updateClass(idx, 'subclass', e.target.value)} className="bg-transparent text-white text-xs p-1 flex-1 border-b border-gray-600">{CLASS_CONFIG[c.name] && CLASS_CONFIG[c.name].subclasses ? CLASS_CONFIG[c.name].subclasses.map(sub => <option key={sub} value={sub}>{sub}</option>) : <option value="" disabled>-</option>}</select></div>))}
+                                        
+                                        <div className="flex gap-2 text-xs text-gray-400 mt-2 border-t border-gray-700 pt-2">
+                                             <div className="flex-1 text-center border-r border-gray-700 pr-1"><div className="text-[8px] uppercase font-bold text-gray-500">Tratto Incantatore</div><div className="text-white font-bold">{classConfig.spellcast}</div></div>
+                                             <div className="flex-1 text-center border-r border-gray-700 px-1"><div className="text-[8px] uppercase font-bold text-gray-500">Dominio 1</div><div className="text-white">{classConfig.domains[0]}</div></div>
+                                             <div className="flex-1 text-center pl-1"><div className="text-[8px] uppercase font-bold text-gray-500">Dominio 2</div><div className="text-white">{classConfig.domains[1]}</div></div>
+                                        </div>
+
+                                        <div className="mt-1"><label className="text-[10px] text-gray-500 block">Giocatore</label><input value={char.playerName} onChange={e => update('playerName', e.target.value)} className="dh-input py-1 text-sm" /></div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center">
+                                        <div className="text-gray-400 text-xs uppercase tracking-wider font-semibold">{char.heritage} <span className="text-[#ca8a04] mx-1">•</span> {char.community} <span className="text-[#ca8a04] mx-1">•</span> {char.classes.map(c => `${c.name} ${c.subclass ? `(${c.subclass})` : ''}`).join(' / ')}</div>
+                                        <div className="text-gray-300 text-lg uppercase tracking-widest mt-2 font-bold font-cinzel">{classConfig.domains[0]} <span className="text-[#ca8a04]">&</span> {classConfig.domains[1]}</div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                         <div className="dh-panel">
+                            <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setShowFeatures(!showFeatures)}><h3 className={`font-cinzel text-sm uppercase flex items-center gap-2 ${isEditMode ? 'text-[#ca8a04]' : 'text-[#ca8a04]'}`}>{showFeatures ? '▼' : '▶'} Privilegi di Classe</h3></div>
+                            {showFeatures && (isEditMode ? <textarea value={char.classFeature} onChange={e => update('classFeature', e.target.value)} className="dh-input h-24 text-sm" placeholder="Descrivi qui..." /> : <div className="text-sm text-gray-300 whitespace-pre-wrap">{char.classFeature || "Nessun privilegio."}</div>)}
+                        </div>
+
+                        <div className="dh-panel">
+                            <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setShowExperiences(!showExperiences)}><h3 className={`font-cinzel text-sm uppercase flex items-center gap-2 ${isEditMode ? 'text-[#ca8a04]' : 'text-[#ca8a04]'}`}>{showExperiences ? '▼' : '▶'} Esperienze</h3></div>
+                            {showExperiences && (char.experiences.map((exp, i) => (<ExperienceRow key={i} exp={exp} index={i} onUpdate={(n) => updateExp(i, n)} isEditMode={isEditMode} />)))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => !isEditMode && setShortRestModalOpen(true)} disabled={isEditMode} className={`h-10 bg-[#27272a] border border-[#3f3f46] rounded p-1 text-center text-xs font-bold transition-all uppercase tracking-wider font-cinzel flex items-center justify-center ${isEditMode ? 'text-white cursor-not-allowed opacity-50' : 'text-[#ca8a04] hover:text-white hover:border-[#ca8a04]'}`}>Riposo Breve</button>
+                            <button onClick={() => !isEditMode && handleLongRest()} disabled={isEditMode} className={`h-10 bg-[#27272a] border border-[#3f3f46] rounded p-1 text-center text-xs font-bold transition-all uppercase tracking-wider font-cinzel flex items-center justify-center ${isEditMode ? 'text-white cursor-not-allowed opacity-50' : 'text-[#ca8a04] hover:text-white hover:border-[#ca8a04]'}`}>Riposo Lungo</button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            {Object.keys(TRAITS).map(k => (
+                                <StatBox key={k} label={TRAITS[k]} value={char.traits[k]} skillText={TRAIT_SKILLS[k]} statKey={k} onChange={updateTrait} isEditMode={isEditMode} onClick={() => openDiceModal(k)} />
+                            ))}
+                        </div>
+
+                        <div className="dh-panel flex items-center justify-between">
+                            <span className={`text-xs uppercase font-bold ${isEditMode ? 'text-[#ca8a04]' : 'text-white'}`}>Evasione</span>
+                            {isEditMode ? <input type="number" value={char.evasion} onChange={e => update('evasion', parseInt(e.target.value))} className="text-2xl font-cinzel bg-transparent text-white text-right w-20 focus:outline-none" /> : <div className="text-2xl font-cinzel text-right text-[#ca8a04]">{char.evasion}</div>}
+                        </div>
+
+                        <ActiveArmorPanel armor={char.activeArmor} onUpdateArmor={(f,v)=>updateDeep('activeArmor',f,v)} isEditMode={isEditMode} slots={char.armorSlots} onUpdateSlots={(f,v)=>updateDeep('armorSlots',f,v)} />
+
+                        <div className="bg-[#1e1e1e] border border-red-900/50 rounded p-3">
+                            <h3 className={`text-center font-bold uppercase text-xs mb-3 tracking-widest ${isEditMode ? 'text-[#ca8a04]' : 'text-red-400'}`}>Soglie di danno</h3>
+                            <div className="flex items-center justify-between text-center relative px-1">
+                                <div className="flex flex-col items-center z-10 bg-[#1e1e1e]"><span className={`text-[10px] font-bold uppercase leading-none ${isEditMode ? 'text-[#ca8a04]' : 'text-red-400'}`}>Danno<br/>minore</span><span className={`text-[9px] font-bold mt-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-red-400'}`}>(1 Danno)</span></div>
+                                <div className="flex-1 flex justify-center px-1">{isEditMode ? <input type="number" value={char.thresholds.minor} onChange={e=>updateDeep('thresholds','minor',parseInt(e.target.value))} className="w-10 bg-[#27272a] text-white text-center rounded p-1 font-bold focus:outline-none border border-[#3f3f46] focus:border-[#ca8a04]" /> : <div className="font-cinzel text-xl text-white bg-[#27272a] px-3 py-1 rounded border border-[#3f3f46]">{char.thresholds.minor}</div>}</div>
+                                <div className="flex flex-col items-center z-10 bg-[#1e1e1e]"><span className={`text-[10px] font-bold uppercase leading-none ${isEditMode ? 'text-[#ca8a04]' : 'text-red-400'}`}>Danno<br/>maggiore</span><span className={`text-[9px] font-bold mt-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-red-400'}`}>(2 Danni)</span></div>
+                                <div className="flex-1 flex justify-center px-1">{isEditMode ? <input type="number" value={char.thresholds.major} onChange={e=>updateDeep('thresholds','major',parseInt(e.target.value))} className="w-10 bg-[#27272a] text-white text-center rounded p-1 font-bold focus:outline-none border border-[#3f3f46] focus:border-[#ca8a04]" /> : <div className="font-cinzel text-xl text-white bg-[#27272a] px-3 py-1 rounded border border-[#3f3f46]">{char.thresholds.major}</div>}</div>
+                                <div className="flex flex-col items-center z-10 bg-[#1e1e1e]"><span className={`text-[10px] font-bold uppercase leading-none ${isEditMode ? 'text-[#ca8a04]' : 'text-red-400'}`}>Danno<br/>grave</span><span className={`text-[9px] font-bold mt-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-red-400'}`}>(3 Danni)</span></div>
+                            </div>
+                        </div>
+
+                        <div className="dh-panel space-y-4">
+                            <div><div className="flex justify-between mb-1"><span className={`text-xs uppercase font-bold ${isEditMode ? 'text-[#ca8a04]' : 'text-red-400'}`}>Punti Ferita</span>{isEditMode ? <input type="number" value={char.hp.max} onChange={e=>updateDeep('hp','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hp.max}</span>}</div><PipTracker total={char.hp.max} current={char.hp.current} onChange={v => updateDeep('hp','current',v)} type="hp" /></div>
+                            <hr className="border-[#3f3f46]" />
+                            <div><div className="flex justify-between mb-1"><span className={`text-xs uppercase font-bold ${isEditMode ? 'text-[#ca8a04]' : 'text-purple-400'}`}>Stress</span>{isEditMode ? <input type="number" value={char.stress.max} onChange={e=>updateDeep('stress','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.stress.max}</span>}</div><PipTracker total={char.stress.max} current={char.stress.current} onChange={v => updateDeep('stress','current',v)} type="stress" /></div>
+                        </div>
+
+                         <div className="dh-panel border-yellow-400/30 border">
+                            <div className="flex justify-between mb-1"><span className={`text-xs uppercase font-bold ${isEditMode ? 'text-[#ca8a04]' : 'text-yellow-400'}`}>Speranza</span>{isEditMode ? <input type="number" value={char.hope.max} onChange={e=>updateDeep('hope','max',parseInt(e.target.value))} className="bg-transparent text-right text-xs w-10 text-gray-600 focus:outline-none"/> : <span className="text-xs text-gray-600">Max: {char.hope.max}</span>}</div><PipTracker total={char.hope.max} current={char.hope.current} onChange={v => updateDeep('hope','current',v)} type="hope" />
+                            <div className="mt-2 border-t border-yellow-400/20 pt-2">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className={`text-[10px] uppercase font-bold ${isEditMode ? 'text-[#ca8a04]' : 'text-yellow-400'}`}>Abilità Speranza</span>
+                                    {isEditMode ? 
+                                        <div className="flex items-center gap-1"><span className="text-[9px] text-gray-500">Costo</span><input type="number" value={char.hope.specialAbility.cost} onChange={e => setChar(p => ({...p, hope: {...p.hope, specialAbility: {...p.hope.specialAbility, cost: parseInt(e.target.value)}}}) )} className="bg-transparent text-right text-xs w-8 text-yellow-400 font-bold focus:outline-none border-b border-gray-700"/></div> 
+                                    : <span className="text-[10px] text-yellow-400 font-bold bg-yellow-400/10 px-1 rounded border border-yellow-400/30">Costo: {char.hope.specialAbility.cost} SP</span>}
+                                </div>
+                                {isEditMode ? <textarea value={char.hope.specialAbility.text} onChange={e => setChar(p => ({...p, hope: {...p.hope, specialAbility: {...p.hope.specialAbility, text: e.target.value}}}) )} className="bg-transparent w-full text-xs text-gray-300 focus:outline-none h-12 resize-none" placeholder="Descrivi qui il privilegio di speranza..." /> : <div className="text-xs text-gray-300 italic min-h-[1.5rem]">{char.hope.specialAbility.text || "Nessun privilegio definito."}</div>}
+                            </div>
+                        </div>
+
+                        <h3 className={`font-cinzel text-lg border-b border-[#3f3f46] pb-1 ${isEditMode ? 'text-[#ca8a04]' : 'text-[#ca8a04]'}`}>Armi Attive</h3>
+                        <div className="flex justify-between items-center mb-2 px-1">
+                            <span className={`text-[10px] uppercase font-bold ${isEditMode ? 'text-[#ca8a04]' : 'text-emerald-400'}`}>Competenza</span>
+                            <div className="flex items-center gap-2">
+                                <PipTracker total={6} current={char.proficiency.current} onChange={isEditMode ? (v) => updateDeep('proficiency', 'current', v) : undefined} type="proficiency" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            {activeWeapons.length > 0 ? activeWeapons.map((w) => (
+                                <WeaponCard key={w.id} weapon={w} isEditMode={isEditMode} globalEditMode={isEditMode} label={w.activeSlot === 'primary' ? "ARMA PRIMARIA" : "ARMA SECONDARIA"} onRollAttack={() => rollAttack(w)} onRollDamage={() => rollDamage(w)} isCrit={critWeaponId === w.id} onChange={nw => { if(nw===null) { const newWs = char.weapons.map(x => x.id === w.id ? {...x, activeSlot: 'none'} : x); setChar(p=>({...p, weapons:newWs})); } else { const newWs = char.weapons.map(x => x.id === w.id ? nw : x); setChar(p=>({...p, weapons:newWs})); } }} onUnequip={(!isEditMode) ? ((id) => unequipWeapon(id)) : undefined} />
+                            )) : <div className="text-gray-500 text-xs text-center italic">Nessuna arma equipaggiata</div>}
+                        </div>
+
+                        <div className="dh-panel border-l-4 border-l-gray-600 bg-[#1e1e1e]">
+                            <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setShowInventory(!showInventory)}>
+                                <h3 className={`font-cinzel text-sm uppercase flex items-center gap-2 ${isEditMode ? 'text-[#ca8a04]' : 'text-[#ca8a04]'}`}>{showInventory ? '▼' : '▶'} Altre Armi</h3>
+                            </div>
+                            {showInventory && (
+                                <div className="space-y-3">
+                                    {inventoryWeapons.map((w) => (
+                                        <WeaponCard key={w.id} weapon={w} isEditMode={isEditMode} globalEditMode={isEditMode} label="ARMA IN INVENTARIO" collapsible={true} onEquip={() => equipWeapon(w)} onChange={nw => { if(nw===null) { const newWs = char.weapons.filter(x => x.id !== w.id); setChar(p=>({...p, weapons:newWs})); } else { const newWs = char.weapons.map(x => x.id === w.id ? nw : x); setChar(p=>({...p, weapons:newWs})); } }} />
+                                    ))}
+                                    
+                                    <div className="mt-4 pt-4 border-t border-[#3f3f46]">
+                                        {!isForging ? (
+                                            <button onClick={() => setIsForging(true)} className={`w-full py-2 bg-[#27272a] hover:bg-[#3f3f46] border border-dashed rounded font-cinzel font-bold text-sm transition-colors ${isEditMode ? 'text-white border-white' : 'text-[#ca8a04] border-[#ca8a04]'}`}>FORGIA LA TUA ARMA</button>
+                                        ) : (
+                                            <WeaponCard weapon={draftWeapon} isEditMode={true} globalEditMode={isEditMode} label="FORGIA NUOVA ARMA" onChange={handleDraftUpdate} onEquip={forgeWeapon} />
+                                        )}
+                                    </div>
+                                    
+                                </div>
+                            )}
+                        </div>
+
+                        <InventoryPanel inventory={char.inventory} onUpdate={v => update('inventory', v)} isEditMode={isEditMode} potions={char.potions || []} onUpdatePotions={ps => update('potions', ps)} onUsePotion={handleUsePotion} />
+
+                    </div>
+
+                    <DiceModal isOpen={diceModal.open} onClose={() => setDiceModal({ ...diceModal, open: false })} trait={diceModal.trait} mod={diceModal.mod} experiences={char.experiences} currentHope={char.hope.current} onRoll={handleDiceRollResult} />
+                    <ShortRestModal isOpen={shortRestModalOpen} onClose={() => setShortRestModalOpen(false)} rank={rank} onConfirm={handleShortRestConfirm} />
+                    <LevelUpModal isOpen={levelUpModalOpen} onClose={() => setLevelUpModalOpen(false)} currentLevel={totalLevel} onConfirm={handleLevelUp} />
+                    <ResultModal isOpen={damageResultModal.open} onClose={() => setDamageResultModal({ ...damageResultModal, open: false })} total={damageResultModal.total} detail={damageResultModal.detail} title={damageResultModal.title} />
+                    <WeaponSwapModal isOpen={swapModal.open} onClose={() => setSwapModal({open: false, newWeapon: null})} newWeapon={swapModal.newWeapon} activeWeapons={activeWeapons} onSelect={finalizeSwap} />
+                </div>
+            );
+        };
+
+        const SlotManager = ({ slots, onSelect, onDelete, onCreate, setSlots, cardsData, setCardsData }) => {
+            const slotImportRef = useRef(null);
+            const cardImportRef = useRef(null);
+
+            const handleExportCharacters = () => {
+                if (!confirm("Vuoi esportare tutti i personaggi?")) return;
+                const blob = new Blob([JSON.stringify(slots, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = "daggerheart_characters.json";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            };
+
+            const handleImportCharacters = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importedSlots = JSON.parse(event.target.result);
+                        if (Array.isArray(importedSlots) && importedSlots.length === 5) {
+                             if(confirm("ATTENZIONE: Importare sovrascriverà TUTTI i personaggi esistenti. Continuare?")) {
+                                 setSlots(importedSlots);
+                                 alert("Personaggi importati con successo!");
+                             }
+                        } else {
+                            alert("File non valido: deve contenere 5 slot personaggio.");
+                        }
+                    } catch (err) {
+                        alert("Errore lettura file.");
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            const handleExportCards = () => {
+                if (!confirm("Vuoi esportare l'intero archivio carte?")) return;
+                const blob = new Blob([JSON.stringify(cardsData, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = "daggerheart_all_cards.json";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            };
+            
+            const handleImportCards = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        if (importedData.heritages && importedData.domains) {
+                             if(confirm("ATTENZIONE: Importare i dati sovrascriverà TUTTE le carte esistenti. Continuare?")) {
+                                 setCardsData(importedData);
+                                 alert("Importazione completata con successo!");
+                             }
+                        } else {
+                            alert("File non valido: struttura dati non riconosciuta.");
+                        }
+                    } catch (err) {
+                        alert("Errore lettura file.");
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            return (
+                <div className="p-4 max-w-md mx-auto min-h-screen flex flex-col justify-center">
+                    <h1 className="text-4xl font-cinzel text-center text-[#ca8a04] mb-2">Daggerheart</h1>
+                    <h2 className="text-xs text-center text-gray-500 mb-8 uppercase tracking-widest">Mobile Companion</h2>
+                    
+                    <div className="space-y-4">
+                        {slots.map((s, i) => (
+                            <div key={i} className={`border rounded-lg p-4 flex justify-between items-center cursor-pointer transition-all ${s ? 'bg-[#1e1e1e] border-[#3f3f46] hover:border-[#ca8a04]' : 'bg-transparent border-dashed border-[#525252] hover:bg-[#1e1e1e]'}`} 
+                                 onClick={() => !s ? onCreate(i) : onSelect(i)}>
+                                <div>
+                                    <div className="text-[10px] text-gray-500 uppercase font-bold">Slot {i+1}</div>
+                                    {s ? (
+                                        <div>
+                                            <div className="text-xl font-bold text-white font-cinzel">{s.name}</div>
+                                            <div className="text-xs text-[#ca8a04]">{s.classes[0].name} Lv. {s.classes.reduce((acc,c)=>acc+(parseInt(c.level)||0),0)}</div>
+                                        </div>
+                                    ) : <div className="text-gray-400 italic font-bold">+ Crea Nuovo Personaggio</div>}
+                                </div>
+                                {s && <button onClick={(e) => {e.stopPropagation(); if(confirm('Sei sicuro di voler eliminare questo personaggio?')) onDelete(i);}} className="text-gray-500 hover:text-red-500 font-bold px-3 py-2 text-xl">×</button>}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-2 justify-center mt-4">
+                        <input type="file" ref={slotImportRef} onChange={handleImportCharacters} className="hidden" accept=".json" />
+                        <button onClick={() => slotImportRef.current.click()} className="text-gray-500 text-xs uppercase underline hover:text-white">IMPORTA PERSONAGGI</button>
+                        <span className="text-gray-700">|</span>
+                        <button onClick={handleExportCharacters} className="text-[#ca8a04] text-xs uppercase underline hover:text-[#eab308]">ESPORTA PERSONAGGI</button>
+                    </div>
+
+                    <hr className="border-[#3f3f46] my-6" />
+
+                    <div className="space-y-4">
+                         <button onClick={() => onSelect('cards')} className="w-full border rounded-lg p-4 flex items-center justify-center cursor-pointer transition-all bg-[#1e1e1e] border-[#ca8a04] hover:bg-[#27272a] group">
+                            <div className="text-center">
+                                <div className="text-xl font-bold text-[#ca8a04] font-cinzel group-hover:text-white transition-colors">CARTE</div>
+                                <div className="text-[10px] text-gray-500 uppercase font-bold">Mazzi di Gioco</div>
+                            </div>
+                         </button>
+                    </div>
+                    
+                    <div className="flex gap-2 justify-center mt-4">
+                        <input type="file" ref={cardImportRef} onChange={handleImportCards} className="hidden" accept=".json" />
+                        <button onClick={() => cardImportRef.current.click()} className="text-gray-500 text-xs uppercase underline hover:text-white">IMPORTA CARTE</button>
+                        <span className="text-gray-700">|</span>
+                        <button onClick={handleExportCards} className="text-[#ca8a04] text-xs uppercase underline hover:text-[#eab308]">ESPORTA CARTE</button>
+                    </div>
+
+                    <div className="mt-8 text-center text-[10px] text-gray-600">I dati sono salvati nel browser locale.</div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [slots, setSlots] = useState(() => JSON.parse(localStorage.getItem('dh_mobile_v13') || '[null,null,null,null,null]'));
+            const [cardsData, setCardsData] = useState(() => {
+                const loaded = JSON.parse(localStorage.getItem('dh_cards_v1') || 'null');
+                if (loaded && !Array.isArray(loaded.subclasses)) {
+                     return loaded;
+                }
+                return JSON.parse(JSON.stringify(DEFAULT_CARDS));
+            });
+            const [active, setActive] = useState(null);
+            const [initialEditMode, setInitialEditMode] = useState(false);
+
+            useEffect(() => localStorage.setItem('dh_mobile_v13', JSON.stringify(slots)), [slots]);
+            useEffect(() => localStorage.setItem('dh_cards_v1', JSON.stringify(cardsData)), [cardsData]);
+
+            const save = (c) => { 
+                if (typeof active === 'number') {
+                    const ns = [...slots]; 
+                    ns[active] = c; 
+                    setSlots(ns); 
+                }
+            };
+            const create = (i) => { const ns = [...slots]; ns[i] = JSON.parse(JSON.stringify(DEFAULT_CHAR)); setSlots(ns); setActive(i); };
+
+            if (active === 'cards') {
+                return <CardManager cardsData={cardsData} setCardsData={setCardsData} onBack={() => setActive(null)} />;
+            }
+
+            return active !== null && typeof active === 'number' ? 
+                <CharacterSheet data={slots[active]} onSave={save} onBack={() => setActive(null)} initialEditMode={initialEditMode} cardsData={cardsData} /> : 
+                <SlotManager slots={slots} setSlots={setSlots} cardsData={cardsData} setCardsData={setCardsData} onSelect={setActive} onCreate={create} onDelete={i => {const ns=[...slots]; ns[i]=null; setSlots(ns);}} />;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
